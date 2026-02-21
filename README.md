@@ -11,10 +11,51 @@ AI-powered banking data assistant with secure SQL execution. Built with FastAPI,
 
 ## Architecture
 
+### High-Level System Architecture
+
 ```
-User Query → FastAPI → AI Engine (LangGraph) → Validation → Database
-             ↓
-         Response
+┌─────────────────────────────────────────────────────────┐
+│                    User Query (NL/SQL)                  │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│            FastAPI Layer (backend/main.py)              │
+│     - HTTP endpoints (/query, /health, /info)          │
+│     - Request/Response handling                         │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│         AI Engine (ai_engine/) - LangGraph              │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │ Intent Agent → SQL Agent → Validation Agent    │   │
+│  │        ↓            ↓              ↓            │   │
+│  │   Understand → Generate SQL → Verify Safety    │   │
+│  └─────────────────────────────────────────────────┘   │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│      Validation Layer (backend/validation.py)           │
+│     - SQL syntax validation                             │
+│     - Injection pattern detection                       │
+│     - Table authorization                               │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│      Execution Layer (backend/execution.py)             │
+│     - Safe query execution                              │
+│     - Result serialization                              │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│       Database Layer (backend/db.py)                    │
+│     - SQLAlchemy engine                                 │
+│     - Connection management                             │
+└─────────────────────────────────────────────────────────┘
 ```
 
 **Components:**
