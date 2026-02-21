@@ -1,5 +1,5 @@
 /* ============================================================
-   API SERVICE — Stitch AI
+   API SERVICE — Bank your Data
    All communication with the FastAPI backend.
    ============================================================ */
 

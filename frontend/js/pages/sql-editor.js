@@ -1,5 +1,5 @@
 /* ============================================================
-   SQL EDITOR PAGE — Stitch AI
+   SQL EDITOR PAGE — Bank your Data
    Direct SQL editing with line numbers & results as prose.
    ============================================================ */
 

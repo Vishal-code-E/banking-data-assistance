@@ -1,5 +1,5 @@
 /* ============================================================
-   STATE MANAGER — Stitch AI
+   STATE MANAGER — Bank your Data
    Simple reactive store for app-wide state.
    ============================================================ */
 

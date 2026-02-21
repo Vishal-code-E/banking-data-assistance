@@ -1,5 +1,5 @@
 /* ============================================================
-   DASHBOARD PAGE — Stitch AI
+   DASHBOARD PAGE — Bank your Data
    Health overview, table stats, recent activity.
    ============================================================ */
 

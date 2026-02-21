@@ -1,5 +1,5 @@
 /* ============================================================
-   DATA SOURCES PAGE — Stitch AI
+   DATA SOURCES PAGE — Bank your Data
    Browse database tables, columns, and types.
    ============================================================ */
 

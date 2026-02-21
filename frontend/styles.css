@@ -1,5 +1,5 @@
 /* ============================================================
-   STITCH AI — GLOBAL STYLES
+   BANK YOUR DATA — GLOBAL STYLES
    Design: Clean light UI with Inter font, primary #1a2b3d
    ============================================================ */
 
@@ -866,9 +866,9 @@ input, textarea { font: inherit; color: inherit; }
 }
 
 /* ============================================================
-   STITCH DATA TABLE (in chat bubbles)
+   BDATA DATA TABLE (in chat bubbles)
    ============================================================ */
-.stitch-data-table-wrap {
+.bdata-data-table-wrap {
   width: 100%;
   max-width: 56rem;
   overflow-x: auto;
@@ -877,13 +877,13 @@ input, textarea { font: inherit; color: inherit; }
   margin-top: 0.25rem;
 }
 
-.stitch-data-table {
+.bdata-data-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.8125rem;
 }
 
-.stitch-data-table th {
+.bdata-data-table th {
   background: var(--border-light);
   font-weight: 600;
   color: var(--text-700);
@@ -893,22 +893,22 @@ input, textarea { font: inherit; color: inherit; }
   border-bottom: 1px solid var(--border);
 }
 
-.stitch-data-table td {
+.bdata-data-table td {
   padding: 0.4rem 0.75rem;
   border-bottom: 1px solid var(--border-light);
   color: var(--text-700);
   white-space: nowrap;
 }
 
-.stitch-data-table tr:last-child td {
+.bdata-data-table tr:last-child td {
   border-bottom: none;
 }
 
-.stitch-data-table tr:hover td {
+.bdata-data-table tr:hover td {
   background: rgba(26,43,61,0.03);
 }
 
-.stitch-table-more {
+.bdata-table-more {
   padding: 0.5rem 0.75rem;
   font-size: 0.75rem;
   color: var(--text-400);
@@ -917,9 +917,9 @@ input, textarea { font: inherit; color: inherit; }
 }
 
 /* ============================================================
-   STITCH CHART (in chat bubbles)
+   BDATA CHART (in chat bubbles)
    ============================================================ */
-.stitch-chart-wrap {
+.bdata-chart-wrap {
   width: 100%;
   max-width: 44rem;
   height: 280px;
@@ -930,7 +930,7 @@ input, textarea { font: inherit; color: inherit; }
   margin-top: 0.25rem;
 }
 
-.stitch-chart-canvas {
+.bdata-chart-canvas {
   width: 100% !important;
   height: 100% !important;
 }

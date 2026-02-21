@@ -1,5 +1,5 @@
 /* ============================================================
-   CONVERSATIONS PAGE — Stitch AI
+   CONVERSATIONS PAGE — Bank your Data
    ChatGPT-style conversational interface.
    User types a natural-language question → /ask endpoint →
    AI engine (LangGraph) → results rendered with table + chart.
@@ -49,7 +49,7 @@ export function render(container) {
           </div>
         </div>
         <div class="chat-disclaimer">
-          Stitch AI can make mistakes. Always verify critical financial data.
+          BData Assistant can make mistakes. Always verify critical financial data.
         </div>
       </div>
     </div>
@@ -83,11 +83,11 @@ function renderWelcome() {
     <div class="msg-group ai">
       <div class="msg-label">
         <span class="material-symbols-outlined">smart_toy</span>
-        <span class="msg-label-text">Stitch AI</span>
+        <span class="msg-label-text">BData Assistant</span>
       </div>
       <div class="ai-content">
         <div class="ai-text">
-          <strong>Welcome to Stitch AI!</strong><br/>
+          <strong>Welcome to BData Assistant!</strong><br/>
           I can help you query and understand your banking data. Just ask a question in plain English and I'll fetch the relevant information for you.<br/><br/>
           <em>Try these:</em>
         </div>
@@ -331,7 +331,7 @@ function appendBubble(msg) {
     group.innerHTML = `
       <div class="msg-label">
         <span class="material-symbols-outlined">smart_toy</span>
-        <span class="msg-label-text">Stitch AI</span>
+        <span class="msg-label-text">BData Assistant</span>
       </div>
       <div class="ai-content">
         <div class="ai-text">${renderMarkdown(msg.text)}</div>
@@ -355,7 +355,7 @@ function appendBubble(msg) {
     }
 
     /* render chart.js canvas (if chart block present) */
-    const canvas = group.querySelector('.stitch-chart-canvas');
+    const canvas = group.querySelector('.bdata-chart-canvas');
     if (canvas && msg._result) renderChart(canvas, msg._result);
   }
 
@@ -374,15 +374,15 @@ function buildDataTable(result) {
   const showRows = data.slice(0, 50);
   const remaining = data.length - showRows.length;
 
-  let html = `<div class="stitch-data-table-wrap">
-    <table class="stitch-data-table">
+  let html = `<div class="bdata-data-table-wrap">
+    <table class="bdata-data-table">
       <thead><tr>${keys.map(k => `<th>${escapeHtml(humanize(k))}</th>`).join('')}</tr></thead>
       <tbody>`;
   showRows.forEach(row => {
     html += `<tr>${keys.map(k => `<td>${escapeHtml(formatValue(row[k]))}</td>`).join('')}</tr>`;
   });
   html += `</tbody></table>`;
-  if (remaining > 0) html += `<div class="stitch-table-more">+${remaining} more rows</div>`;
+  if (remaining > 0) html += `<div class="bdata-table-more">+${remaining} more rows</div>`;
   html += `</div>`;
   return html;
 }
@@ -398,8 +398,8 @@ function buildChartBlock(result) {
   if (data.length === 0 || data.length > 30) return '';
 
   const id = 'chart-' + Math.random().toString(36).slice(2, 10);
-  return `<div class="stitch-chart-wrap">
-    <canvas class="stitch-chart-canvas" id="${id}" height="260"></canvas>
+  return `<div class="bdata-chart-wrap">
+    <canvas class="bdata-chart-canvas" id="${id}" height="260"></canvas>
   </div>`;
 }
 
@@ -480,7 +480,7 @@ function showProgress() {
   div.innerHTML = `
     <div class="msg-label">
       <span class="material-symbols-outlined">smart_toy</span>
-      <span class="msg-label-text">Stitch AI</span>
+      <span class="msg-label-text">BData Assistant</span>
     </div>
     <div class="ai-content">
       <div class="progress-card">

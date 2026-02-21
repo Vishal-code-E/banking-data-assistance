@@ -1,5 +1,5 @@
 /* ============================================================
-   APP.JS — Stitch AI  (router, sidebar, bootstrap)
+   APP.JS — Bank your Data  (router, sidebar, bootstrap)
    ============================================================ */
 
 import { setPage, getState } from './state.js';
@@ -15,7 +15,7 @@ const pages = {
 
 /* header configs per page */
 const headerConfig = {
-  conversations: { title: 'Stitch AI Assistant', badge: 'Beta v1.0' },
+  conversations: { title: 'BData Assistant', badge: 'Beta v1.0' },
   dashboard:     { title: 'Dashboard', badge: 'Overview' },
   'sql-editor':  { title: 'SQL Editor', badge: 'Interactive' },
   history:       { title: 'Query History', badge: 'Session' },
@@ -87,5 +87,5 @@ document.addEventListener('DOMContentLoaded', () => {
   navigateTo(getState().currentPage || 'conversations');
 
   /* expose for debugging */
-  window.__stitch = { navigateTo };
+  window.__bdata = { navigateTo };
 });

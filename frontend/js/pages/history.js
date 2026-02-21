@@ -1,5 +1,5 @@
 /* ============================================================
-   HISTORY PAGE — Stitch AI
+   HISTORY PAGE — Bank your Data
    Display previous queries from the session state.
    ============================================================ */
 
