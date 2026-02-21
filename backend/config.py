@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL", 
-        "sqlite:///banking.db"
+        "sqlite:///banking_10k.db"
     )
     
     # Database connection pool settings
@@ -47,15 +47,18 @@ class Settings(BaseSettings):
     ]
     
     # CORS (if frontend is on different origin)
-    CORS_ORIGINS: list[str] = os.getenv(
-        "CORS_ORIGINS",
-        "http://localhost:3000,http://localhost:8080"
-    ).split(",")
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8080"
+    
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """Parse CORS origins from comma-separated string"""
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
     
     class Config:
         case_sensitive = True
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"  # Ignore extra fields from .env
 
 
 # Global settings instance
