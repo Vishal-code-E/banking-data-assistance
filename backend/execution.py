@@ -85,13 +85,15 @@ class QueryResult:
         data: Optional[List[Dict[str, Any]]] = None,
         error: Optional[str] = None,
         row_count: int = 0,
-        execution_time_ms: Optional[float] = None
+        execution_time_ms: Optional[float] = None,
+        cleaned_sql: Optional[str] = None
     ):
         self.success = success
         self.data = data or []
         self.error = error
         self.row_count = row_count
         self.execution_time_ms = execution_time_ms
+        self.cleaned_sql = cleaned_sql
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert result to dictionary for API response"""
@@ -173,7 +175,8 @@ def execute_query(sql: str) -> QueryResult:
                 success=True,
                 data=serialized_data,
                 row_count=len(rows),
-                execution_time_ms=execution_time_ms
+                execution_time_ms=execution_time_ms,
+                cleaned_sql=cleaned_sql
             )
     
     except OperationalError as e:

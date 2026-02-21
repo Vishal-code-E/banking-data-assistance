@@ -1,5 +1,4 @@
-# Banking Data Assistant - Unified Dependencies
-# Backend (FastAPI + SQLAlchemy) + AI Engine (LangGraph)
+# Banking Data Assistant - Production Dependencies
 
 # Web Framework
 fastapi==0.109.0
@@ -7,32 +6,18 @@ uvicorn[standard]==0.27.0
 
 # Database & ORM
 sqlalchemy==2.0.25
-alembic==1.13.1
 
 # Environment & Configuration
 python-dotenv==1.0.0
 pydantic==2.5.3
 pydantic-settings==2.1.0
 
-# Security
-passlib[bcrypt]==1.7.4
-
 # AI Engine - LangGraph & LangChain
 langgraph>=0.2.0
 langchain>=0.3.0
 langchain-core>=0.3.0
 
-# Optional - for production LLM integration (uncomment when ready)
-# langchain-openai>=0.2.0
-# openai>=1.0.0
-# anthropic>=0.8.0
-
-# Development & Testing
+# Testing
 pytest==7.4.4
 pytest-asyncio==0.23.3
 httpx==0.26.0
-
-# Code Quality
-black==24.1.1
-flake8==7.0.0
-mypy==1.8.0

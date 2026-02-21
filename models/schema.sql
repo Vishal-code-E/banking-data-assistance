@@ -54,7 +54,7 @@ CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_a
 -- ============================================================
 
 -- Insert sample customers
-INSERT INTO customers (name, email) VALUES 
+INSERT OR IGNORE INTO customers (name, email) VALUES 
     ('John Doe', 'john.doe@email.com'),
     ('Jane Smith', 'jane.smith@email.com'),
     ('Robert Johnson', 'robert.johnson@email.com'),
@@ -62,7 +62,7 @@ INSERT INTO customers (name, email) VALUES
     ('Michael Brown', 'michael.brown@email.com');
 
 -- Insert sample accounts
-INSERT INTO accounts (customer_id, account_number, balance) VALUES
+INSERT OR IGNORE INTO accounts (customer_id, account_number, balance) VALUES
     (1, 'ACC1001', 5000.00),
     (1, 'ACC1002', 12500.50),
     (2, 'ACC2001', 8750.25),
@@ -72,7 +72,7 @@ INSERT INTO accounts (customer_id, account_number, balance) VALUES
     (5, 'ACC5002', 50000.00);
 
 -- Insert sample transactions
-INSERT INTO transactions (account_id, type, amount) VALUES
+INSERT OR IGNORE INTO transactions (account_id, type, amount) VALUES
     -- Account 1 (ACC1001) transactions
     (1, 'credit', 1000.00),
     (1, 'debit', 250.00),

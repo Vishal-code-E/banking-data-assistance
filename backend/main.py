@@ -5,9 +5,9 @@ Main entry point for the backend API
 
 import logging
 from contextlib import asynccontextmanager
-from typing import Union
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -17,7 +17,6 @@ from backend.execution import execute_query, QueryResult
 from backend.schemas import (
     QueryRequest,
     QueryResponse,
-    ErrorResponse,
     HealthResponse,
     InfoResponse
 )
@@ -44,25 +43,25 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Banking Data Assistant API...")
     logger.info(f"Environment: {'Development' if settings.DEBUG else 'Production'}")
     logger.info(f"Database: {settings.DATABASE_URL}")
-    
+
     try:
         # Initialize database
         init_database()
-        
+
         # Verify tables exist
         if not verify_tables_exist():
             logger.warning("Some required tables are missing!")
         else:
             logger.info("All required tables verified successfully")
-        
+
         logger.info("Application startup complete")
-        
+
     except Exception as e:
         logger.error(f"Failed to initialize application: {e}")
         raise
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down Banking Data Assistant API...")
 
@@ -113,18 +112,41 @@ app.add_middleware(
 # EXCEPTION HANDLERS
 # ============================================================
 
-@app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """
-    Global exception handler for unexpected errors
+    Handle Pydantic / request validation errors.
+    Returns contract-compliant JSON instead of FastAPI default 422.
+    """
+    errors = exc.errors()
+    msg = "; ".join(e.get("msg", "Validation error") for e in errors)
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "validated_sql": None,
+            "execution_result": None,
+            "summary": None,
+            "chart_suggestion": None,
+            "error": f"Request validation error: {msg}"
+        }
+    )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """
+    Global exception handler for unexpected errors.
+    Ensures server NEVER crashes — always returns safe JSON.
     """
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
-            "success": False,
-            "error": "An internal server error occurred",
-            "row_count": 0
+            "validated_sql": None,
+            "execution_result": None,
+            "summary": None,
+            "chart_suggestion": None,
+            "error": "An internal server error occurred"
         }
     )
 
@@ -157,10 +179,7 @@ async def health_check():
         return HealthResponse(**health_status)
     except Exception as e:
         logger.error(f"Health check failed: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Service unavailable"
-        )
+        return HealthResponse(status="unhealthy", error=str(e))
 
 
 @app.get("/info", response_model=InfoResponse, tags=["Info"])
@@ -185,82 +204,111 @@ async def get_info():
 
 @app.post(
     "/query",
-    response_model=Union[QueryResponse, ErrorResponse],
+    response_model=QueryResponse,
     tags=["Query"],
     responses={
         200: {
-            "description": "Query executed successfully",
+            "description": "Query executed (success or validation error)",
             "model": QueryResponse
-        },
-        400: {
-            "description": "Invalid query or validation error",
-            "model": ErrorResponse
         },
         500: {
             "description": "Internal server error",
-            "model": ErrorResponse
+            "model": QueryResponse
         }
     }
 )
 async def execute_sql_query(request: QueryRequest):
     """
     Execute a SQL query
-    
+
     ## Request Body
     - **sql**: SQL SELECT query to execute
-    
+
+    ## Response Contract
+    Always returns the standardized JSON:
+    ```json
+    {
+      "validated_sql": "...",
+      "execution_result": {...},
+      "summary": "...",
+      "chart_suggestion": "...",
+      "error": null
+    }
+    ```
+
     ## Security
     - Only SELECT statements are allowed
     - All queries are validated before execution
     - Only whitelisted tables can be accessed
     - SQL injection patterns are blocked
-    
-    ## Example Queries
-    
-    Get all customers:
-    ```sql
-    SELECT * FROM customers
-    ```
-    
-    Get customer with accounts:
-    ```sql
-    SELECT c.name, a.account_number, a.balance 
-    FROM customers c 
-    JOIN accounts a ON c.id = a.customer_id 
-    WHERE c.id = 1
-    ```
-    
-    Get transaction summary:
-    ```sql
-    SELECT account_id, type, SUM(amount) as total 
-    FROM transactions 
-    GROUP BY account_id, type
-    ```
     """
     try:
         logger.info(f"Received query request: {request.sql[:100]}...")
-        
+
         # Execute query through execution layer
         result: QueryResult = execute_query(request.sql)
-        
-        # Return appropriate response
+
         if result.success:
-            return QueryResponse(**result.to_dict())
+            # Build execution_result payload
+            execution_result = {
+                "data": result.data,
+                "row_count": result.row_count,
+            }
+            if result.execution_time_ms is not None:
+                execution_result["execution_time_ms"] = round(result.execution_time_ms, 2)
+
+            # Generate a human-readable summary
+            summary = f"Query returned {result.row_count} row(s)"
+
+            # Suggest a chart type based on result shape
+            chart_suggestion = _suggest_chart(result.data, result.row_count)
+
+            return QueryResponse(
+                validated_sql=result.cleaned_sql,
+                execution_result=execution_result,
+                summary=summary,
+                chart_suggestion=chart_suggestion,
+                error=None
+            )
         else:
-            # Return error response with 200 status (business logic error, not HTTP error)
-            return ErrorResponse(**result.to_dict())
-            
+            # Validation or execution error — return contract-compliant error
+            return QueryResponse(
+                validated_sql=None,
+                execution_result=None,
+                summary=None,
+                chart_suggestion=None,
+                error=result.error
+            )
+
     except Exception as e:
         logger.error(f"Query execution failed: {e}", exc_info=True)
-        return ErrorResponse(
-            success=False,
-            error="An unexpected error occurred during query execution",
-            row_count=0
+        return QueryResponse(
+            validated_sql=None,
+            execution_result=None,
+            summary=None,
+            chart_suggestion=None,
+            error="An unexpected error occurred during query execution"
         )
 
 
 # ============================================================
-# ADDITIONAL ENDPOINTS (Future)
+# HELPER FUNCTIONS
+# ============================================================
+
+def _suggest_chart(data: list, row_count: int) -> str:
+    """Simple heuristic for chart suggestion based on result shape."""
+    if row_count == 0:
+        return "none"
+    if row_count == 1:
+        return "card"
+    # If only 2 columns (label + value), a bar/pie chart works
+    if data and len(data[0]) == 2:
+        return "bar" if row_count > 5 else "pie"
+    return "table"
+
+
+# ============================================================
+# ADDITIONAL ENDPOINTS
 # ============================================================
 
 @app.get("/tables", tags=["Info"])
@@ -285,7 +333,7 @@ async def list_tables():
             "columns": ["id", "account_id", "type", "amount", "created_at"]
         }
     ]
-    
+
     return {
         "tables": tables,
         "count": len(tables)
@@ -319,12 +367,11 @@ if settings.DEBUG:
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
-        "main:app",
+        "backend.main:app",
         host="0.0.0.0",
         port=8000,
         reload=settings.DEBUG,
         log_level="debug" if settings.DEBUG else "info"
     )
-
