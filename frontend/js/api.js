@@ -8,11 +8,7 @@
  *
  * Priority:
  *  1. window.__API_BASE  – allows runtime injection via a <script> tag
- *  2. If the frontend is served from a Render static site
- *     (hostname contains 'onrender.com'), derive the backend
- *     URL by replacing the static-site prefix with the web-service prefix.
- *     Convention: static site  = "bdata-frontend.onrender.com"
- *                 web service  = "bdata-backend.onrender.com"
+ *  2. Known Render deployment mapping
  *  3. Fallback → localhost for local development.
  */
 function resolveApiBase() {
@@ -21,11 +17,9 @@ function resolveApiBase() {
 
   const host = window.location.hostname;
 
-  // 2. Render convention: <name>.onrender.com
+  // 2. Render production
   if (host.endsWith('.onrender.com')) {
-    // Replace "-frontend" or the site name with "-backend"
-    const backendHost = host.replace(/-frontend/, '-backend');
-    return `https://${backendHost}`;
+    return 'https://banking-data-assistance.onrender.com';
   }
 
   // 3. Local development
