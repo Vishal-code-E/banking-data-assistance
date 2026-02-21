@@ -190,8 +190,9 @@ async function onSend() {
   } catch (err) {
     removeProgress(progressId);
     const aiMsg = addAIMessage(
-      `Sorry, something went wrong:\n\n**${err.message}**\n\nPlease try again.`,
+      `Sorry, something went wrong:\n\n**${err.message}**\n\nPlease check your connection and try again.`,
     );
+    aiMsg._isError = true;
     appendBubble(aiMsg);
   }
 
@@ -363,107 +364,269 @@ function appendBubble(msg) {
 }
 
 /* ============================================================
-   DATA TABLE
+   DYNAMIC DATA TABLE
    ============================================================ */
 function buildDataTable(result) {
   if (!result || result.error) return '';
   const data = result.execution_result?.data ?? [];
-  if (data.length === 0) return '';
+  if (data.length === 0) {
+    return `<div class="bdata-empty-state">
+      <span class="material-symbols-outlined">search_off</span>
+      <span>No data returned</span>
+    </div>`;
+  }
 
-  const keys = Object.keys(data[0]);
-  const showRows = data.slice(0, 50);
+  /* Derive columns dynamically from the first row — never hardcoded */
+  const columns = Object.keys(data[0]);
+  const MAX_DISPLAY = 100;
+  const showRows = data.slice(0, MAX_DISPLAY);
   const remaining = data.length - showRows.length;
 
   let html = `<div class="bdata-data-table-wrap">
+    <div class="bdata-table-header-bar">
+      <span class="material-symbols-outlined" style="font-size:1rem">table_chart</span>
+      <span>${data.length} row${data.length !== 1 ? 's' : ''} · ${columns.length} column${columns.length !== 1 ? 's' : ''}</span>
+    </div>
     <table class="bdata-data-table">
-      <thead><tr>${keys.map(k => `<th>${escapeHtml(humanize(k))}</th>`).join('')}</tr></thead>
+      <thead><tr>${columns.map(k => `<th>${escapeHtml(humanize(k))}</th>`).join('')}</tr></thead>
       <tbody>`;
   showRows.forEach(row => {
-    html += `<tr>${keys.map(k => `<td>${escapeHtml(formatValue(row[k]))}</td>`).join('')}</tr>`;
+    html += `<tr>${columns.map(k => `<td>${escapeHtml(formatValue(row[k]))}</td>`).join('')}</tr>`;
   });
   html += `</tbody></table>`;
-  if (remaining > 0) html += `<div class="bdata-table-more">+${remaining} more rows</div>`;
+  if (remaining > 0) html += `<div class="bdata-table-more">+${remaining} more rows (showing first ${MAX_DISPLAY})</div>`;
   html += `</div>`;
   return html;
 }
 
 /* ============================================================
-   CHART BLOCK  (Chart.js — degrades gracefully)
+   CHART INTELLIGENCE ENGINE
+   Analyzes data shape and selects the optimal chart type.
    ============================================================ */
+
+/** Color palette for charts */
+const CHART_PALETTE = [
+  '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6',
+  '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#06b6d4',
+  '#84cc16', '#d946ef', '#0891b2', '#e11d48', '#7c3aed',
+];
+
+/**
+ * Classify each column as 'numeric', 'categorical', or 'temporal'.
+ */
+function classifyColumns(data) {
+  if (!data.length) return {};
+  const keys = Object.keys(data[0]);
+  const info = {};
+
+  for (const k of keys) {
+    const sample = data.map(r => r[k]).filter(v => v != null);
+    if (sample.length === 0) { info[k] = 'categorical'; continue; }
+
+    const numCount = sample.filter(v => typeof v === 'number').length;
+    if (numCount / sample.length > 0.8) { info[k] = 'numeric'; continue; }
+
+    /* Check for temporal patterns (ISO dates, datetime strings) */
+    const datePattern = /^\d{4}-\d{2}-\d{2}|^\d{2}[\/\-]\d{2}[\/\-]\d{2,4}/;
+    const dateCount = sample.filter(v => typeof v === 'string' && datePattern.test(v)).length;
+    if (dateCount / sample.length > 0.6) { info[k] = 'temporal'; continue; }
+
+    /* Check if column name hints at time */
+    const timeName = /date|time|created|updated|timestamp|month|year|day/i;
+    if (timeName.test(k) && typeof sample[0] === 'string') { info[k] = 'temporal'; continue; }
+
+    info[k] = 'categorical';
+  }
+  return info;
+}
+
+/**
+ * Infer the best chart type from data shape when backend doesn't suggest one.
+ *
+ *  - 1 categorical + 1 numeric → bar
+ *  - 1 temporal + 1 numeric   → line
+ *  - single row, single numeric → metric (no chart)
+ *  - many numeric columns       → grouped bar
+ *  - 2-6 categorical slices     → pie
+ *  - no numeric columns         → table (no chart)
+ */
+function inferChartType(data, colTypes) {
+  const keys = Object.keys(colTypes);
+  const numericCols  = keys.filter(k => colTypes[k] === 'numeric');
+  const catCols      = keys.filter(k => colTypes[k] === 'categorical');
+  const temporalCols = keys.filter(k => colTypes[k] === 'temporal');
+
+  /* No numeric data at all → skip chart */
+  if (numericCols.length === 0) return 'none';
+
+  /* Single-row aggregate (COUNT, SUM, AVG) → metric, no chart */
+  if (data.length === 1 && numericCols.length >= 1 && catCols.length === 0 && temporalCols.length === 0) return 'metric';
+
+  /* Time series detected → line */
+  if (temporalCols.length >= 1 && numericCols.length >= 1) return 'line';
+
+  /* Small categorical + 1 numeric → pie if ≤6 rows, bar otherwise */
+  if (catCols.length >= 1 && numericCols.length === 1) {
+    return data.length <= 6 ? 'pie' : 'bar';
+  }
+
+  /* Multiple numeric columns → grouped bar */
+  if (numericCols.length > 1) return 'bar';
+
+  /* Fallback */
+  return data.length > 1 ? 'bar' : 'none';
+}
+
+/**
+ * Build the chart container HTML. Returns '' when no chart is appropriate.
+ */
 function buildChartBlock(result) {
   if (!result || result.error) return '';
-  const suggestion = result.chart_suggestion;
-  if (!suggestion || suggestion === 'none' || suggestion === 'table') return '';
   const data = result.execution_result?.data ?? [];
-  if (data.length === 0 || data.length > 30) return '';
+  if (data.length === 0 || data.length > 50) return '';
+
+  const colTypes = classifyColumns(data);
+  const suggestion = result.chart_suggestion;
+  const resolved = resolveChartType(suggestion, data, colTypes);
+
+  if (resolved === 'none' || resolved === 'table' || resolved === 'metric') return '';
 
   const id = 'chart-' + Math.random().toString(36).slice(2, 10);
   return `<div class="bdata-chart-wrap">
+    <div class="bdata-chart-title-bar">
+      <span class="material-symbols-outlined" style="font-size:1rem">bar_chart</span>
+      <span>Data Visualization — ${resolved.charAt(0).toUpperCase() + resolved.slice(1)} Chart</span>
+    </div>
     <canvas class="bdata-chart-canvas" id="${id}" height="260"></canvas>
   </div>`;
 }
 
+/**
+ * Resolve chart type: trust backend suggestion when valid, infer otherwise.
+ */
+function resolveChartType(suggestion, data, colTypes) {
+  const validTypes = ['bar', 'line', 'pie', 'doughnut'];
+  if (suggestion && validTypes.includes(suggestion)) return suggestion;
+  if (suggestion === 'table' || suggestion === 'metric' || suggestion === 'none') return suggestion;
+  return inferChartType(data, colTypes);
+}
+
+/**
+ * Render the Chart.js visualization onto a <canvas>.
+ * Fully dynamic — no hardcoded columns or values.
+ */
 function renderChart(canvas, result) {
   if (typeof Chart === 'undefined') return;
 
-  // Destroy any existing chart on this canvas to prevent memory leaks
+  /* 1. Destroy existing chart instance to prevent memory leaks */
   const existing = Chart.getChart(canvas);
   if (existing) existing.destroy();
 
-  const suggestion = result.chart_suggestion;
   const data = result.execution_result?.data ?? [];
   if (data.length === 0) return;
 
+  const colTypes = classifyColumns(data);
   const keys = Object.keys(data[0]);
-  if (keys.length < 2) return;
+  const numericCols  = keys.filter(k => colTypes[k] === 'numeric');
+  const catCols      = keys.filter(k => colTypes[k] === 'categorical');
+  const temporalCols = keys.filter(k => colTypes[k] === 'temporal');
 
-  let labelKey = keys[0];
-  let valueKey = keys[1];
-  for (const k of keys) {
-    if (typeof data[0][k] === 'string') { labelKey = k; break; }
-  }
-  for (const k of keys) {
-    if (typeof data[0][k] === 'number') { valueKey = k; break; }
-  }
+  if (numericCols.length === 0) return; /* nothing to chart */
 
-  const labels = data.map(r => String(r[labelKey]));
-  const values = data.map(r => Number(r[valueKey]) || 0);
+  /* 2. Resolve chart type */
+  const type = resolveChartType(result.chart_suggestion, data, colTypes);
+  if (type === 'none' || type === 'table' || type === 'metric') return;
 
-  const palette = [
-    '#1a2b3d', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444',
-    '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1',
-  ];
+  /* 3. Determine label axis (first categorical or temporal column, else first key) */
+  let labelKey = temporalCols[0] || catCols[0] || keys[0];
 
-  const type = suggestion === 'pie' ? 'pie'
-    : suggestion === 'line' ? 'line'
-    : 'bar';
+  /* 4. Build labels */
+  const labels = data.map(r => {
+    const v = r[labelKey];
+    if (v == null) return '—';
+    if (typeof v === 'string' && v.length > 24) return v.slice(0, 21) + '…';
+    return String(v);
+  });
 
+  /* 5. Build datasets — one per numeric column for grouped bar/line */
+  const isPie = (type === 'pie' || type === 'doughnut');
+  const datasets = numericCols.map((col, i) => ({
+    label: humanize(col),
+    data: data.map(r => Number(r[col]) || 0),
+    backgroundColor: isPie
+      ? CHART_PALETTE.slice(0, data.length)
+      : CHART_PALETTE[i % CHART_PALETTE.length] + 'cc',
+    borderColor: isPie
+      ? '#ffffff'
+      : CHART_PALETTE[i % CHART_PALETTE.length],
+    borderWidth: isPie ? 2 : 2,
+    borderRadius: type === 'bar' ? 6 : 0,
+    tension: type === 'line' ? 0.3 : 0,
+    fill: type === 'line' ? false : undefined,
+    pointRadius: type === 'line' ? 4 : undefined,
+    pointHoverRadius: type === 'line' ? 6 : undefined,
+  }));
+
+  /* For pie/doughnut, only use the first numeric column */
+  const chartDatasets = isPie ? [datasets[0]] : datasets;
+
+  /* 6. Create Chart.js instance */
   new Chart(canvas, {
-    type,
+    type: isPie ? type : type,
     data: {
       labels,
-      datasets: [{
-        label: humanize(valueKey),
-        data: values,
-        backgroundColor: type === 'pie'
-          ? palette.slice(0, values.length)
-          : palette[0] + 'cc',
-        borderColor: type === 'pie' ? '#fff' : palette[0],
-        borderWidth: type === 'pie' ? 2 : 1,
-        borderRadius: type === 'bar' ? 6 : 0,
-      }]
+      datasets: chartDatasets,
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: {
+        intersect: false,
+        mode: 'index',
+      },
       plugins: {
-        legend: { display: type === 'pie', position: 'bottom' },
+        legend: {
+          display: isPie || datasets.length > 1,
+          position: isPie ? 'bottom' : 'top',
+          labels: {
+            usePointStyle: true,
+            padding: 16,
+            font: { size: 12, family: 'Inter' },
+          },
+        },
+        tooltip: {
+          backgroundColor: '#1a2b3d',
+          titleFont: { family: 'Inter', weight: '600' },
+          bodyFont: { family: 'Inter' },
+          padding: 12,
+          cornerRadius: 8,
+          callbacks: {
+            label: (ctx) => {
+              const val = ctx.parsed.y ?? ctx.parsed;
+              const formatted = typeof val === 'number' ? val.toLocaleString() : val;
+              return ` ${ctx.dataset.label}: ${formatted}`;
+            },
+          },
+        },
       },
-      scales: type === 'pie' ? {} : {
-        y: { beginAtZero: true, grid: { color: '#e2e8f0' } },
-        x: { grid: { display: false } },
+      scales: isPie ? {} : {
+        y: {
+          beginAtZero: true,
+          grid: { color: '#e2e8f0', drawBorder: false },
+          ticks: {
+            font: { size: 11, family: 'Inter' },
+            callback: (v) => typeof v === 'number' && v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v,
+          },
+        },
+        x: {
+          grid: { display: false },
+          ticks: {
+            font: { size: 11, family: 'Inter' },
+            maxRotation: 45,
+          },
+        },
       },
-    }
+    },
   });
 }
 

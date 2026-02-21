@@ -877,6 +877,20 @@ input, textarea { font: inherit; color: inherit; }
   margin-top: 0.25rem;
 }
 
+.bdata-table-header-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--border-light);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-500);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .bdata-data-table {
   width: 100%;
   border-collapse: collapse;
@@ -884,13 +898,16 @@ input, textarea { font: inherit; color: inherit; }
 }
 
 .bdata-data-table th {
-  background: var(--border-light);
+  background: var(--bg-white);
   font-weight: 600;
   color: var(--text-700);
   text-align: left;
   padding: 0.5rem 0.75rem;
   white-space: nowrap;
   border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .bdata-data-table td {
@@ -922,17 +939,53 @@ input, textarea { font: inherit; color: inherit; }
 .bdata-chart-wrap {
   width: 100%;
   max-width: 44rem;
-  height: 280px;
+  height: 320px;
   background: var(--bg-white);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 1rem;
+  padding: 0;
   margin-top: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bdata-chart-title-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--border-light);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-500);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
 }
 
 .bdata-chart-canvas {
+  flex: 1;
   width: 100% !important;
-  height: 100% !important;
+  padding: 0.75rem;
+}
+
+.bdata-empty-state {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--border-light);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-400);
+  font-size: 0.8125rem;
+  margin-top: 0.25rem;
+}
+
+.bdata-empty-state .material-symbols-outlined {
+  font-size: 1.25rem;
 }
 
 /* ============================================================
