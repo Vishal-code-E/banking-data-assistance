@@ -1,53 +1,69 @@
-# Banking Data Assistant - Backend Core
+# Banking Data Assistant - Full Stack AI System
 
-A production-grade, secure, and modular backend system for executing read-only SQL queries against a banking database. Built with FastAPI and SQLAlchemy, designed with enterprise-level security and clean architecture principles.
+A production-grade, AI-powered banking data assistant that combines natural language processing with secure SQL execution. Built with FastAPI, SQLAlchemy, and LangGraph for enterprise-level security and intelligent query processing.
 
 ---
 
 ## 🎯 **Overview**
 
-This backend provides a **secure REST API** for executing SQL queries with:
-- **Strict validation** (SELECT queries only)
-- **SQL injection protection**
-- **Table access control** (whitelist-based)
-- **Clean layered architecture**
-- **Production-ready error handling**
+This system provides:
+- **🤖 AI-Powered Query Processing** - Natural language to SQL using LangGraph multi-agent architecture
+- **🔒 Strict Security** - SELECT-only queries with SQL injection protection
+- **🏗️ Modular Architecture** - Separate backend and AI engine layers
+- **✅ Intelligent Validation** - Multi-layer validation with intent detection
+- **📊 Production Ready** - Complete error handling, logging, and monitoring
 
-**Note**: This phase is **backend core only**. AI/LLM integration will be added in future phases.
+**Complete Integration**: Backend core (FastAPI + SQLAlchemy) + AI Engine (LangGraph + LangChain)
 
 ---
 
 ## 🏗️ **Architecture**
 
+### **High-Level System Architecture**
+
 ```
-┌─────────────────────────────────────────┐
-│         FastAPI Layer (main.py)         │
-│     - HTTP endpoints                    │
-│     - Request/Response handling         │
-│     - Error handling                    │
-└──────────────┬──────────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────────┐
-│      Validation Layer (validation.py)   │
-│     - SQL syntax validation             │
-│     - Injection pattern detection       │
-│     - Table authorization               │
-└──────────────┬──────────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────────┐
-│      Execution Layer (execution.py)     │
-│     - Safe query execution              │
-│     - Result serialization              │
-└──────────────┬──────────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────────┐
-│       Database Layer (db.py)            │
-│     - SQLAlchemy engine                 │
-│     - Connection management             │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    User Query (NL/SQL)                  │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│            FastAPI Layer (backend/main.py)              │
+│     - HTTP endpoints (/query, /health, /info)          │
+│     - Request/Response handling                         │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│         AI Engine (ai_engine/) - LangGraph              │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │ Intent Agent → SQL Agent → Validation Agent    │   │
+│  │        ↓            ↓              ↓            │   │
+│  │   Understand → Generate SQL → Verify Safety    │   │
+│  └─────────────────────────────────────────────────┘   │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│      Validation Layer (backend/validation.py)           │
+│     - SQL syntax validation                             │
+│     - Injection pattern detection                       │
+│     - Table authorization                               │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│      Execution Layer (backend/execution.py)             │
+│     - Safe query execution                              │
+│     - Result serialization                              │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│       Database Layer (backend/db.py)                    │
+│     - SQLAlchemy engine                                 │
+│     - Connection management                             │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -57,20 +73,38 @@ This backend provides a **secure REST API** for executing SQL queries with:
 ```
 banking-data-assistance/
 │
-├── backend/
-│   ├── main.py           # FastAPI application
-│   ├── config.py         # Configuration & settings
-│   ├── db.py             # Database layer (SQLAlchemy)
-│   ├── validation.py     # SQL validation logic
-│   ├── execution.py      # Query execution engine
-│   └── schemas.py        # Pydantic models
+├── backend/                  # FastAPI Backend Core
+│   ├── main.py              # FastAPI application & endpoints
+│   ├── config.py            # Configuration & settings
+│   ├── db.py                # Database layer (SQLAlchemy)
+│   ├── validation.py        # SQL validation logic
+│   ├── execution.py         # Query execution engine
+│   └── schemas.py           # Pydantic models
+│
+├── ai_engine/               # LangGraph AI Engine
+│   ├── main.py             # AI engine entry point
+│   ├── graph.py            # LangGraph workflow definition
+│   ├── state.py            # State management
+│   ├── agents/             # Multi-agent system
+│   │   ├── intent_agent.py      # Intent classification
+│   │   ├── sql_agent.py         # SQL generation
+│   │   ├── validation_agent.py  # Safety validation
+│   │   └── insight_agent.py     # Result interpretation
+│   ├── prompts/            # Agent prompts
+│   ├── utils/              # Utilities
+│   │   ├── logger.py           # Logging
+│   │   ├── schema_loader.py    # Schema management
+│   │   └── sql_security.py     # Security checks
+│   └── test_security.py    # Security tests
 │
 ├── models/
-│   └── schema.sql        # Database schema + seed data
+│   └── schema.sql          # Database schema + seed data
 │
-├── requirements.txt      # Python dependencies
-├── .env.example         # Environment template
-└── README.md            # This file
+├── frontend/               # Frontend (future)
+├── tests/                  # Tests
+├── requirements.txt        # Unified dependencies
+├── .env.example           # Environment template
+└── README.md              # This file
 ```
 
 ---
