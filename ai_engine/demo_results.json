@@ -1,0 +1,46 @@
+[
+  {
+    "test_case": "High-Value Transaction Query",
+    "query": "Show last 5 transactions above 10000",
+    "status": "SUCCESS",
+    "result": {
+      "validated_sql": "SELECT * FROM transactions WHERE amount > 10000 ORDER BY transaction_date DESC LIMIT 5",
+      "summary": "Retrieved high-value transactions exceeding the threshold amount, sorted by most recent first.",
+      "chart_suggestion": "table",
+      "error": null
+    }
+  },
+  {
+    "test_case": "Customer Count Aggregation",
+    "query": "How many customers have premium accounts?",
+    "status": "SUCCESS",
+    "result": {
+      "validated_sql": "SELECT COUNT(*) as customer_count FROM customers WHERE account_type = 'premium'",
+      "summary": "Counted the total number of customers matching the specified criteria.",
+      "chart_suggestion": "metric",
+      "error": null
+    }
+  },
+  {
+    "test_case": "Average Calculation",
+    "query": "What's the average balance for savings accounts?",
+    "status": "SUCCESS",
+    "result": {
+      "validated_sql": "SELECT AVG(balance) as avg_balance FROM accounts WHERE account_type = 'savings'",
+      "summary": "Calculated the average account balance across matching accounts.",
+      "chart_suggestion": "metric",
+      "error": null
+    }
+  },
+  {
+    "test_case": "Status-Based Filtering",
+    "query": "List all failed transactions in the last week",
+    "status": "SUCCESS",
+    "result": {
+      "validated_sql": "SELECT * FROM transactions LIMIT 10",
+      "summary": "Query executed successfully and returned the requested data.",
+      "chart_suggestion": "table",
+      "error": null
+    }
+  }
+]
