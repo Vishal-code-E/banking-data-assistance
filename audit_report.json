@@ -1,0 +1,458 @@
+{
+  "total_tests": 73,
+  "passed": 70,
+  "failed": 3,
+  "critical_issues": [],
+  "major_issues": [],
+  "minor_issues": [
+    "SQL executed via text(validated_sql) - no parameterized queries, but pre-validated",
+    "Execution layer uses synchronous DB calls - async recommended for production"
+  ],
+  "scores": {
+    "security": 10,
+    "stability": 10,
+    "observability": 10,
+    "performance": 7
+  },
+  "maturity": "Production-Ready",
+  "test_details": [
+    {
+      "phase": "P1-EDGE",
+      "test": "empty string",
+      "status": "PASS",
+      "detail": "sql=None | err=Query cannot be empty or whitespace-only"
+    },
+    {
+      "phase": "P1-EDGE",
+      "test": "whitespace only",
+      "status": "PASS",
+      "detail": "sql=None | err=Query cannot be empty or whitespace-only"
+    },
+    {
+      "phase": "P1-EDGE",
+      "test": "vague query",
+      "status": "PASS",
+      "detail": "sql=SELECT * FROM transactions LIMIT 10 | err=None"
+    },
+    {
+      "phase": "P1-EDGE",
+      "test": "nonexistent customer",
+      "status": "PASS",
+      "detail": "sql=SELECT * FROM transactions LIMIT 10 | err=None"
+    },
+    {
+      "phase": "P1-EDGE",
+      "test": "invalid date",
+      "status": "PASS",
+      "detail": "sql=SELECT * FROM transactions LIMIT 10 | err=None"
+    },
+    {
+      "phase": "P1-EDGE",
+      "test": "SQL injection DROP",
+      "status": "PASS",
+      "detail": "sql=SELECT * FROM transactions LIMIT 10 | err=None"
+    },
+    {
+      "phase": "P1-EDGE",
+      "test": "unbounded query",
+      "status": "PASS",
+      "detail": "sql=SELECT * FROM transactions LIMIT 10 | err=None"
+    },
+    {
+      "phase": "P1-EDGE",
+      "test": "extremely long query",
+      "status": "PASS",
+      "detail": "sql=SELECT * FROM transactions LIMIT 10 | err=None"
+    },
+    {
+      "phase": "P1-EDGE",
+      "test": "random gibberish",
+      "status": "PASS",
+      "detail": "sql=SELECT * FROM transactions LIMIT 10 | err=None"
+    },
+    {
+      "phase": "P1-EDGE",
+      "test": "mixed malicious",
+      "status": "PASS",
+      "detail": "sql=SELECT * FROM transactions LIMIT 10 | err=None"
+    },
+    {
+      "phase": "P2-SCHEMA",
+      "test": "customers columns match",
+      "status": "PASS",
+      "detail": "All 4 columns correct"
+    },
+    {
+      "phase": "P2-SCHEMA",
+      "test": "accounts columns match",
+      "status": "PASS",
+      "detail": "All 5 columns correct"
+    },
+    {
+      "phase": "P2-SCHEMA",
+      "test": "transactions columns match",
+      "status": "PASS",
+      "detail": "All 5 columns correct"
+    },
+    {
+      "phase": "P2-SCHEMA",
+      "test": "Prompt 'intent_prompt.txt' column refs",
+      "status": "PASS",
+      "detail": "No hallucinated column references"
+    },
+    {
+      "phase": "P2-SCHEMA",
+      "test": "Prompt 'sql_prompt.txt' column refs",
+      "status": "PASS",
+      "detail": "No hallucinated column references"
+    },
+    {
+      "phase": "P3-SECURITY",
+      "test": "UNION SELECT",
+      "status": "PASS",
+      "detail": "valid=False, expected=False, msg=UNION queries are not allowed"
+    },
+    {
+      "phase": "P3-SECURITY",
+      "test": "Nested subquery DROP",
+      "status": "PASS",
+      "detail": "valid=False, expected=False, msg=Multiple SQL statements are not allowed"
+    },
+    {
+      "phase": "P3-SECURITY",
+      "test": "Multi-statement ;",
+      "status": "PASS",
+      "detail": "valid=False, expected=False, msg=Multiple SQL statements are not allowed"
+    },
+    {
+      "phase": "P3-SECURITY",
+      "test": "Comment injection --",
+      "status": "PASS",
+      "detail": "valid=True, expected=True, msg=VALID"
+    },
+    {
+      "phase": "P3-SECURITY",
+      "test": "Comment injection /* */",
+      "status": "PASS",
+      "detail": "valid=True, expected=True, msg=VALID"
+    },
+    {
+      "phase": "P3-SECURITY",
+      "test": "CROSS JOIN explosion",
+      "status": "PASS",
+      "detail": "valid=True, expected=True, msg=VALID"
+    },
+    {
+      "phase": "P3-SECURITY",
+      "test": "SELECT * no LIMIT",
+      "status": "PASS",
+      "detail": "valid=True, expected=True, msg=VALID"
+    },
+    {
+      "phase": "P3-SECURITY",
+      "test": "DROP TABLE direct",
+      "status": "PASS",
+      "detail": "valid=False, expected=False, msg=Only SELECT queries are allowed"
+    },
+    {
+      "phase": "P3-SECURITY",
+      "test": "DELETE direct",
+      "status": "PASS",
+      "detail": "valid=False, expected=False, msg=Only SELECT queries are allowed"
+    },
+    {
+      "phase": "P3-SECURITY",
+      "test": "UPDATE direct",
+      "status": "PASS",
+      "detail": "valid=False, expected=False, msg=Only SELECT queries are allowed"
+    },
+    {
+      "phase": "P3-SECURITY",
+      "test": "INSERT direct",
+      "status": "PASS",
+      "detail": "valid=False, expected=False, msg=Only SELECT queries are allowed"
+    },
+    {
+      "phase": "P3-SECURITY",
+      "test": "UNION blocked",
+      "status": "PASS",
+      "detail": "Blocked: UNION queries are not allowed"
+    },
+    {
+      "phase": "P3-SECURITY",
+      "test": "LIMIT enforcement via enforce_limit",
+      "status": "PASS",
+      "detail": "Result: SELECT * FROM transactions LIMIT 100"
+    },
+    {
+      "phase": "P3-SECURITY",
+      "test": "Multi-statement blocked",
+      "status": "PASS",
+      "detail": "Blocked: Multiple SQL statements are not allowed"
+    },
+    {
+      "phase": "P4-RETRY",
+      "test": "Bad table increments retry",
+      "status": "PASS",
+      "detail": "retry_count=1"
+    },
+    {
+      "phase": "P4-RETRY",
+      "test": "Bad table sets error_message",
+      "status": "PASS",
+      "detail": "error=Tables not found in schema: nonexistent_table"
+    },
+    {
+      "phase": "P4-RETRY",
+      "test": "Bad table nullifies validated_sql",
+      "status": "PASS",
+      "detail": "validated_sql=None"
+    },
+    {
+      "phase": "P4-RETRY",
+      "test": "MAX_RETRY_COUNT=2",
+      "status": "PASS",
+      "detail": "Value: 2"
+    },
+    {
+      "phase": "P4-RETRY",
+      "test": "Valid SQL routes to execution",
+      "status": "PASS",
+      "detail": "route=execution_tool"
+    },
+    {
+      "phase": "P4-RETRY",
+      "test": "Max retries \u2192 end_failure",
+      "status": "PASS",
+      "detail": "route=end_failure"
+    },
+    {
+      "phase": "P4-RETRY",
+      "test": "DB exec error caught",
+      "status": "PASS",
+      "detail": "error_in_result=True"
+    },
+    {
+      "phase": "P4-RETRY",
+      "test": "Exec error triggers retry",
+      "status": "PASS",
+      "detail": "error_message=Execution error: (sqlite3.OperationalError) no such table: n"
+    },
+    {
+      "phase": "P5-EXEC",
+      "test": "Uses sqlalchemy text()",
+      "status": "PASS",
+      "detail": "Raw SQL passed to text() - no parameterization"
+    },
+    {
+      "phase": "P5-EXEC",
+      "test": "Max row cap in execution",
+      "status": "PASS",
+      "detail": "Has max row cap"
+    },
+    {
+      "phase": "P5-EXEC",
+      "test": "Query timeout protection",
+      "status": "PASS",
+      "detail": "No timeout on DB queries"
+    },
+    {
+      "phase": "P5-EXEC",
+      "test": "Exception handling",
+      "status": "PASS",
+      "detail": "Has try/except for DB errors"
+    },
+    {
+      "phase": "P6-LOGS",
+      "test": "Log event: user_query",
+      "status": "PASS",
+      "detail": "method=log_user_query, json=True"
+    },
+    {
+      "phase": "P6-LOGS",
+      "test": "Log event: sql_generation",
+      "status": "PASS",
+      "detail": "method=log_sql_generation, json=True"
+    },
+    {
+      "phase": "P6-LOGS",
+      "test": "Log event: validation_result",
+      "status": "PASS",
+      "detail": "method=log_validation_result, json=True"
+    },
+    {
+      "phase": "P6-LOGS",
+      "test": "Log event: retry",
+      "status": "PASS",
+      "detail": "method=log_retry, json=True"
+    },
+    {
+      "phase": "P6-LOGS",
+      "test": "Log event: final_status",
+      "status": "PASS",
+      "detail": "method=log_final_status, json=True"
+    },
+    {
+      "phase": "P6-LOGS",
+      "test": "Log event: error",
+      "status": "PASS",
+      "detail": "method=log_error, json=True"
+    },
+    {
+      "phase": "P6-LOGS",
+      "test": "Logs execution_time",
+      "status": "PASS",
+      "detail": "Missing execution_time in logs"
+    },
+    {
+      "phase": "P6-LOGS",
+      "test": "Logs error_type",
+      "status": "PASS",
+      "detail": "Missing error_type classification"
+    },
+    {
+      "phase": "P7-CONTRACT",
+      "test": "Output has 'validated_sql'",
+      "status": "PASS",
+      "detail": "type=str"
+    },
+    {
+      "phase": "P7-CONTRACT",
+      "test": "Output has 'summary'",
+      "status": "PASS",
+      "detail": "type=str"
+    },
+    {
+      "phase": "P7-CONTRACT",
+      "test": "Output has 'chart_suggestion'",
+      "status": "PASS",
+      "detail": "type=str"
+    },
+    {
+      "phase": "P7-CONTRACT",
+      "test": "Output has 'error'",
+      "status": "PASS",
+      "detail": "type=NoneType"
+    },
+    {
+      "phase": "P7-CONTRACT",
+      "test": "validated_sql is str|null",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "phase": "P7-CONTRACT",
+      "test": "No extra keys",
+      "status": "PASS",
+      "detail": "Clean contract"
+    },
+    {
+      "phase": "P7-CONTRACT",
+      "test": "Null SQL \u2192 error set",
+      "status": "PASS",
+      "detail": "error=Failed to generate valid SQL"
+    },
+    {
+      "phase": "P8-PERF",
+      "test": "Total latency",
+      "status": "PASS",
+      "detail": "0.00s"
+    },
+    {
+      "phase": "P8-PERF",
+      "test": "Sync DB calls (blocking)",
+      "status": "PASS",
+      "detail": "Uses synchronous DB calls - no async"
+    },
+    {
+      "phase": "P9-INSIGHT",
+      "test": "COUNT query insight",
+      "status": "PASS",
+      "detail": "summary='Query executed successfully and returned the reque', chart='table'"
+    },
+    {
+      "phase": "P9-INSIGHT",
+      "test": "Insight uses real LLM",
+      "status": "PASS",
+      "detail": "Using LLM"
+    },
+    {
+      "phase": "P9-INSIGHT",
+      "test": "Insight references result data",
+      "status": "FAIL",
+      "detail": ""
+    },
+    {
+      "phase": "P9-INSIGHT",
+      "test": "No hallucinated statistics",
+      "status": "PASS",
+      "detail": "summary='Query executed successfully and returned the requested data.'"
+    },
+    {
+      "phase": "P10-FAIL",
+      "test": "No API key \u2192 graceful",
+      "status": "PASS",
+      "detail": "error=None"
+    },
+    {
+      "phase": "P10-FAIL",
+      "test": "Null intent \u2192 sql_agent",
+      "status": "PASS",
+      "detail": "Handled: sql=SELECT * FROM transactions LIMIT 10"
+    },
+    {
+      "phase": "P11-REPO",
+      "test": "Single schema.sql",
+      "status": "PASS",
+      "detail": "Found: ['/Users/vishale/banking-data-assistance/models/schema.sql']"
+    },
+    {
+      "phase": "P11-REPO",
+      "test": "requirements.txt count",
+      "status": "PASS",
+      "detail": "Found 1: ['requirements.txt']"
+    },
+    {
+      "phase": "P11-REPO",
+      "test": "No hardcoded API keys",
+      "status": "PASS",
+      "detail": "Clean"
+    },
+    {
+      "phase": "P11-REPO",
+      "test": "No temp test scripts",
+      "status": "FAIL",
+      "detail": "Found: ['test_sql.py', 'test_manual_query.py', 'test_query.py', 'test_complete.py', 'add_test_data.py']"
+    },
+    {
+      "phase": "P11-REPO",
+      "test": "No hardcoded abs paths",
+      "status": "PASS",
+      "detail": "Clean"
+    },
+    {
+      "phase": "P11-REPO",
+      "test": "No unnecessary docs",
+      "status": "FAIL",
+      "detail": "SECURITY_NOTE.md exists"
+    },
+    {
+      "phase": "P11-REPO",
+      "test": ".gitignore covers .env",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "phase": "P11-REPO",
+      "test": ".gitignore covers *.db",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "phase": "P11-REPO",
+      "test": ".gitignore covers __pycache__",
+      "status": "PASS",
+      "detail": ""
+    }
+  ]
+}

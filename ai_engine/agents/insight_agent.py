@@ -4,48 +4,63 @@ Final agent in the LangGraph pipeline.
 """
 
 from typing import Dict, Any
+from pathlib import Path
 from ai_engine.state import BankingAssistantState
 from ai_engine.utils.logger import logger
+
+_PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
 
 def load_insight_prompt() -> str:
     """Load the insight generation prompt template."""
-    with open("/Users/vishale/banking-data-assistance/ai_engine/prompts/insight_prompt.txt", "r") as f:
+    with open(_PROMPT_DIR / "insight_prompt.txt", "r") as f:
         return f.read()
 
 
 def call_llm_for_insight(prompt: str) -> tuple:
     """
-    Abstract LLM call for insight generation.
-    In production, this would call OpenAI/Anthropic API.
-    
+    Call OpenAI LLM for insight generation.
+
     Returns:
         Tuple of (summary, chart_suggestion)
     """
-    # SIMULATION MODE - replace with actual LLM in production
-    # Extract SQL and result from prompt to generate insights
-    
-    if "SELECT * FROM transactions WHERE amount >" in prompt:
-        summary = "Retrieved high-value transactions exceeding the threshold amount, sorted by most recent first."
+    import os
+    api_key = os.environ.get("OPENAI_API_KEY", "")
+    if not api_key:
+        logger.log_error("OPENAI_API_KEY not set for insight generation", {})
+        return "Query executed successfully and returned the requested data.", "table"
+
+    try:
+        from langchain_openai import ChatOpenAI
+
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        response = llm.invoke(prompt)
+        content = response.content.strip()
+
+        # Parse summary and chart from LLM response
+        summary = content
         chart = "table"
-    
-    elif "COUNT(*)" in prompt and "customers" in prompt:
-        summary = "Counted the total number of customers matching the specified criteria."
-        chart = "metric"
-    
-    elif "AVG(balance)" in prompt:
-        summary = "Calculated the average account balance across matching accounts."
-        chart = "metric"
-    
-    elif "status = 'failed'" in prompt:
-        summary = "Retrieved all failed transactions within the specified time period."
-        chart = "table"
-    
-    else:
-        summary = "Query executed successfully and returned the requested data."
-        chart = "table"
-    
-    return summary, chart
+
+        # Try to extract structured response
+        lines = content.split("\n")
+        for line in lines:
+            line_lower = line.strip().lower()
+            if line_lower.startswith("summary:"):
+                summary = line.split(":", 1)[1].strip().strip('"')
+            elif line_lower.startswith("chart:"):
+                chart_val = line.split(":", 1)[1].strip().strip('"').lower()
+                if chart_val in ("bar", "line", "pie", "table", "metric"):
+                    chart = chart_val
+
+        # If no structured format, use full response as summary
+        if summary == content and "Summary" not in content:
+            summary = content
+
+        return summary, chart
+
+    except Exception as e:
+        logger.log_error(f"Insight LLM call failed: {e}", {})
+        return "Query executed successfully and returned the requested data.", "table"
 
 
 def insight_agent(state: BankingAssistantState) -> Dict[str, Any]:

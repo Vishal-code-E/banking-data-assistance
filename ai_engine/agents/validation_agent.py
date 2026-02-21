@@ -4,15 +4,18 @@ Third agent in the LangGraph pipeline.
 """
 
 from typing import Dict, Any
+from pathlib import Path
 from ai_engine.state import BankingAssistantState, MAX_RETRY_COUNT
 from ai_engine.utils.logger import logger
 from ai_engine.utils.schema_loader import get_schema, get_schema_as_text
-from ai_engine.utils.sql_security import validate_sql_safety
+from ai_engine.utils.sql_security import validate_sql_safety, enforce_limit
+
+_PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
 
 def load_validation_prompt() -> str:
     """Load the validation prompt template."""
-    with open("/Users/vishale/banking-data-assistance/ai_engine/prompts/validation_prompt.txt", "r") as f:
+    with open(_PROMPT_DIR / "validation_prompt.txt", "r") as f:
         return f.read()
 
 
@@ -102,6 +105,9 @@ def validation_agent(state: BankingAssistantState) -> Dict[str, Any]:
         }
     
     # Validation passed
+    # Enforce LIMIT clause for safety
+    generated_sql = enforce_limit(generated_sql)
+
     logger.log_validation_result(True, "SQL validated successfully")
     
     logger.log_agent_execution(

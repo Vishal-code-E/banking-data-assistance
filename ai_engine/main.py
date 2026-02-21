@@ -4,6 +4,7 @@ Demonstrates the multi-agent system in action.
 """
 
 import json
+from pathlib import Path
 from ai_engine.graph import banking_assistant_graph
 from ai_engine.state import create_initial_state
 from ai_engine.utils.logger import logger
@@ -50,9 +51,18 @@ def run_banking_assistant(user_query: str, verbose: bool = True) -> dict:
     print(f"{'='*70}")
     print(f"\nUser Query: {user_query}\n")
     
+    # Validate input
+    if not user_query or not user_query.strip():
+        return {
+            "validated_sql": None,
+            "summary": None,
+            "chart_suggestion": None,
+            "error": "Query cannot be empty or whitespace-only"
+        }
+
     # Create initial state
     initial_state = create_initial_state(user_query)
-    
+
     try:
         # Execute the graph
         if verbose:
@@ -138,9 +148,10 @@ def main():
         print()
     
     # Export results as JSON
-    with open("/Users/vishale/banking-data-assistance/ai_engine/example_output.json", "w") as f:
+    output_path = Path(__file__).resolve().parent / "example_output.json"
+    with open(output_path, "w") as f:
         json.dump(results, f, indent=2)
-    
+
     print(f"Full results exported to: ai_engine/example_output.json\n")
 
 

@@ -16,44 +16,78 @@ from ai_engine.utils.logger import logger
 def execution_tool_node(state: BankingAssistantState) -> dict:
     """
     Database execution node - executes validated SQL against the real database.
-    
+
     Args:
         state: Current state containing validated_sql
-        
+
     Returns:
         State updates with execution_result
     """
+    import signal
+    import time
+
+    QUERY_TIMEOUT_SECONDS = 30
+    MAX_ROWS = 1000
+
     validated_sql = state["validated_sql"]
-    
+    start_time = time.time()
+
     try:
-        # Execute against realpostgres database
+        # Execute against real database
         from backend.db import engine
         from sqlalchemy import text
-        
-        with engine.connect() as conn:
-            result = conn.execute(text(validated_sql))
-            
-            # Fetch all rows and convert to list of dicts
-            rows = []
-            columns = list(result.keys()) if result.keys() else []
-            
-            for row in result:
-                row_dict = {}
-                for i, col in enumerate(columns):
-                    row_dict[col] = row[i]
-                rows.append(row_dict)
-            
-            execution_result = {
-                "rows": rows,
-                "row_count": len(rows)
-            }
-    
+
+        # Timeout handler (Unix-only)
+        def timeout_handler(signum, frame):
+            raise TimeoutError(f"Query exceeded {QUERY_TIMEOUT_SECONDS}s timeout")
+
+        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(QUERY_TIMEOUT_SECONDS)
+
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text(validated_sql))
+
+                # Fetch rows with max row cap
+                rows = []
+                columns = list(result.keys()) if result.keys() else []
+
+                for row in result:
+                    if len(rows) >= MAX_ROWS:
+                        break
+                    row_dict = {}
+                    for i, col in enumerate(columns):
+                        row_dict[col] = row[i]
+                    rows.append(row_dict)
+
+                execution_time = round(time.time() - start_time, 3)
+                execution_result = {
+                    "rows": rows,
+                    "row_count": len(rows),
+                    "execution_time_seconds": execution_time
+                }
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
+
+    except TimeoutError as e:
+        execution_time = round(time.time() - start_time, 3)
+        logger.log_error(f"Query timeout: {e}", {"sql": validated_sql})
+        execution_result = {
+            "rows": [],
+            "row_count": 0,
+            "error": str(e),
+            "execution_time_seconds": execution_time
+        }
+
     except Exception as e:
+        execution_time = round(time.time() - start_time, 3)
         logger.log_error(f"Database execution failed: {e}", {"sql": validated_sql})
         execution_result = {
             "rows": [],
             "row_count": 0,
-            "error": str(e)
+            "error": str(e),
+            "execution_time_seconds": execution_time
         }
     
     logger.log_agent_execution(
@@ -61,9 +95,21 @@ def execution_tool_node(state: BankingAssistantState) -> dict:
         input_data={"validated_sql": validated_sql},
         output_data={"execution_result": execution_result}
     )
-    
+
+    # If execution failed, set error for potential retry
+    if execution_result.get("error"):
+        retry_count = state.get("retry_count", 0)
+        new_retry_count = retry_count + 1
+        return {
+            "execution_result": execution_result,
+            "error_message": f"Execution error: {execution_result['error']}",
+            "retry_count": new_retry_count,
+            "validated_sql": None
+        }
+
     return {
-        "execution_result": execution_result
+        "execution_result": execution_result,
+        "error_message": None
     }
 
 
@@ -105,6 +151,32 @@ def should_retry(state: BankingAssistantState) -> Literal["sql_agent", "executio
     
     # Default to execution if state is unclear
     return "execution_tool"
+
+
+def should_retry_after_execution(state: BankingAssistantState) -> Literal["sql_agent", "insight_agent", "end_failure"]:
+    """
+    Conditional routing after execution.
+    Routes back to sql_agent on execution errors if retries remain.
+    """
+    error_message = state.get("error_message")
+    retry_count = state.get("retry_count", 0)
+    execution_result = state.get("execution_result", {})
+
+    # Execution succeeded
+    if not error_message and not execution_result.get("error"):
+        return "insight_agent"
+
+    # Execution failed but retries remain
+    if retry_count < MAX_RETRY_COUNT:
+        logger.log_retry(retry_count, error_message or "Execution error")
+        return "sql_agent"
+
+    # Max retries exceeded
+    logger.log_final_status(
+        success=False,
+        error=f"Max retries ({MAX_RETRY_COUNT}) exceeded after execution error: {error_message}"
+    )
+    return "end_failure"
 
 
 def build_graph() -> StateGraph:
@@ -149,8 +221,16 @@ def build_graph() -> StateGraph:
         }
     )
     
-    # Execution → Insight → END
-    workflow.add_edge("execution_tool", "insight_agent")
+    # Conditional edge after execution (retry on execution errors)
+    workflow.add_conditional_edges(
+        "execution_tool",
+        should_retry_after_execution,
+        {
+            "sql_agent": "sql_agent",           # Retry SQL on execution error
+            "insight_agent": "insight_agent",    # Success → insights
+            "end_failure": END                   # Max retries - terminate
+        }
+    )
     workflow.add_edge("insight_agent", END)
     
     # Compile the graph

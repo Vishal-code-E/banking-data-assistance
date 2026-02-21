@@ -4,13 +4,16 @@ First agent in the LangGraph pipeline.
 """
 
 from typing import Dict, Any
+from pathlib import Path
 from ai_engine.state import BankingAssistantState
 from ai_engine.utils.logger import logger
+
+_PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
 
 def load_intent_prompt() -> str:
     """Load the intent extraction prompt template."""
-    with open("/Users/vishale/banking-data-assistance/ai_engine/prompts/intent_prompt.txt", "r") as f:
+    with open(_PROMPT_DIR / "intent_prompt.txt", "r") as f:
         return f.read()
 
 
@@ -18,9 +21,16 @@ def call_llm_for_intent(prompt: str) -> str:
     """
     Call OpenAI LLM for intent extraction.
     """
+    import os
+    api_key = os.environ.get("OPENAI_API_KEY", "")
+    if not api_key:
+        logger.log_error("OPENAI_API_KEY not set", {})
+        user_query = prompt.split("User Query: ")[-1].strip()
+        return f"Extract and analyze data based on: {user_query}"
+
     try:
         from langchain_openai import ChatOpenAI
-        
+
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
         response = llm.invoke(prompt)
         return response.content.strip()

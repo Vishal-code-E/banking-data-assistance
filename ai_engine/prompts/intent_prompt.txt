@@ -5,25 +5,30 @@ Your task is to analyze the user's natural language query and extract a clear, s
 Focus on identifying:
 1. **Entity Type**: What are they asking about? (customers, accounts, transactions)
 2. **Action**: What do they want to do? (view, count, sum, average, filter, sort)
-3. **Filters**: Any conditions? (amount > X, date range, status, account type)
+3. **Filters**: Any conditions? (amount > X, date range, transaction type, balance)
 4. **Aggregation**: Do they want grouped/aggregated data?
 5. **Limit**: How many results? (top 5, last 10, etc.)
+
+Database tables and columns:
+- customers: id, name, email, created_at
+- accounts: id, customer_id, account_number, balance, created_at
+- transactions: id, account_id, type (credit/debit), amount, created_at
 
 Be precise and structured.
 
 Examples:
 
 User: "Show last 5 transactions above 10000"
-Intent: Retrieve the 5 most recent transactions where amount > 10000, ordered by transaction_date DESC
+Intent: Retrieve the 5 most recent transactions where amount > 10000, ordered by created_at DESC
 
-User: "How many customers have premium accounts?"
-Intent: Count customers where account_type = 'premium'
+User: "How many customers are there?"
+Intent: Count all customers
 
-User: "What's the average balance for savings accounts?"
-Intent: Calculate average balance for accounts where account_type = 'savings'
+User: "What's the average account balance?"
+Intent: Calculate average balance from accounts table
 
-User: "List all failed transactions in the last week"
-Intent: Retrieve transactions where status = 'failed' AND transaction_date >= CURRENT_DATE - 7 days
+User: "List all debit transactions in the last week"
+Intent: Retrieve transactions where type = 'debit' AND created_at >= CURRENT_DATE - 7 days
 
 Now extract the intent from this query:
 

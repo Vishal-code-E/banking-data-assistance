@@ -41,7 +41,13 @@ def create_initial_state(user_query: str) -> BankingAssistantState:
         
     Returns:
         BankingAssistantState with all fields initialized
+        
+    Raises:
+        ValueError: If user_query is empty or whitespace-only
     """
+    if not user_query or not user_query.strip():
+        raise ValueError("User query cannot be empty or whitespace-only")
+
     return BankingAssistantState(
         user_query=user_query,
         interpreted_intent=None,

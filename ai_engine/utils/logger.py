@@ -76,13 +76,29 @@ class StructuredLogger:
             "validated_sql": validated_sql,
             "error": error
         }))
-    
-    def log_error(self, error_message: str, context: Dict[str, Any] = None) -> None:
-        """Log errors with context."""
+
+    def log_execution_time(self, agent_name: str, execution_time_seconds: float) -> None:
+        """Log execution time for performance monitoring."""
+        self.logger.info(json.dumps({
+            "event": "execution_time",
+            "timestamp": datetime.utcnow().isoformat(),
+            "agent": agent_name,
+            "execution_time_seconds": execution_time_seconds
+        }))
+
+    def log_error(self, error_message: str, context: Dict[str, Any] = None, error_type: str = "system") -> None:
+        """Log errors with context and type classification.
+
+        Args:
+            error_message: The error message
+            context: Additional context dict
+            error_type: One of 'validation', 'execution', 'system', 'timeout'
+        """
         self.logger.error(json.dumps({
             "event": "error",
             "timestamp": datetime.utcnow().isoformat(),
             "error": error_message,
+            "error_type": error_type,
             "context": context or {}
         }))
 

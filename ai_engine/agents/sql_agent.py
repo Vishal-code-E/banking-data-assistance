@@ -4,14 +4,17 @@ Second agent in the LangGraph pipeline.
 """
 
 from typing import Dict, Any
+from pathlib import Path
 from ai_engine.state import BankingAssistantState
 from ai_engine.utils.logger import logger
 from ai_engine.utils.schema_loader import get_schema_as_text
 
+_PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompts"
+
 
 def load_sql_prompt() -> str:
     """Load the SQL generation prompt template."""
-    with open("/Users/vishale/banking-data-assistance/ai_engine/prompts/sql_prompt.txt", "r") as f:
+    with open(_PROMPT_DIR / "sql_prompt.txt", "r") as f:
         return f.read()
 
 
@@ -19,21 +22,27 @@ def call_llm_for_sql(prompt: str) -> str:
     """
     Call OpenAI LLM for SQL generation.
     """
+    import os
+    api_key = os.environ.get("OPENAI_API_KEY", "")
+    if not api_key:
+        logger.log_error("OPENAI_API_KEY not set", {})
+        return "SELECT * FROM transactions LIMIT 10"
+
     try:
         from langchain_openai import ChatOpenAI
-        
+
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
         response = llm.invoke(prompt)
-        
+
         # Extract SQL from response (handle code blocks)
         sql = response.content.strip()
-        
+
         # Remove markdown code blocks if present
         if "```sql" in sql:
             sql = sql.split("```sql")[1].split("```")[0].strip()
         elif "```" in sql:
             sql = sql.split("```")[1].split("```")[0].strip()
-        
+
         return sql
     except Exception as e:
         logger.log_error(f"LLM call failed: {e}", {})
