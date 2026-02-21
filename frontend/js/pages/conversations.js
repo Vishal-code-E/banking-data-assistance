@@ -406,6 +406,10 @@ function buildChartBlock(result) {
 function renderChart(canvas, result) {
   if (typeof Chart === 'undefined') return;
 
+  // Destroy any existing chart on this canvas to prevent memory leaks
+  const existing = Chart.getChart(canvas);
+  if (existing) existing.destroy();
+
   const suggestion = result.chart_suggestion;
   const data = result.execution_result?.data ?? [];
   if (data.length === 0) return;

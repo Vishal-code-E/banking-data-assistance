@@ -5,6 +5,9 @@ Second agent in the LangGraph pipeline.
 
 from typing import Dict, Any
 from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv()
+
 from ai_engine.state import BankingAssistantState
 from ai_engine.utils.logger import logger
 from ai_engine.utils.schema_loader import get_schema_as_text
@@ -82,6 +85,9 @@ def sql_agent(state: BankingAssistantState) -> Dict[str, Any]:
     
     # Clean up SQL
     generated_sql = generated_sql.strip().rstrip(';')
+    
+    print(f"[SQL AGENT] USER QUERY: {state.get('user_query', 'N/A')}")
+    print(f"[SQL AGENT] GENERATED SQL: {generated_sql}")
     
     logger.log_sql_generation(generated_sql, retry_count)
     

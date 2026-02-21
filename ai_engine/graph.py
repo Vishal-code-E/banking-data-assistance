@@ -32,6 +32,8 @@ def execution_tool_node(state: BankingAssistantState) -> dict:
     validated_sql = state["validated_sql"]
     start_time = time.time()
 
+    print(f"[EXECUTION TOOL] VALIDATED SQL: {validated_sql}")
+
     try:
         # Execute against real database
         from backend.db import engine
@@ -80,6 +82,7 @@ def execution_tool_node(state: BankingAssistantState) -> dict:
             "row_count": len(rows),
             "execution_time_seconds": execution_time
         }
+        print(f"[EXECUTION TOOL] RESULT COUNT: {len(rows)}")
 
     except TimeoutError as e:
         execution_time = round(time.time() - start_time, 3)

@@ -5,6 +5,9 @@ Final agent in the LangGraph pipeline.
 
 from typing import Dict, Any
 from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv()
+
 from ai_engine.state import BankingAssistantState
 from ai_engine.utils.logger import logger
 
@@ -87,6 +90,11 @@ def insight_agent(state: BankingAssistantState) -> Dict[str, Any]:
     
     # Call LLM (abstracted)
     summary, chart_suggestion = call_llm_for_insight(formatted_prompt)
+    
+    row_count = execution_result.get('row_count', 0)
+    print(f"[INSIGHT AGENT] EXECUTION RESULT COUNT: {row_count}")
+    print(f"[INSIGHT AGENT] SUMMARY: {summary[:100]}")
+    print(f"[INSIGHT AGENT] CHART: {chart_suggestion}")
     
     logger.log_agent_execution(
         agent_name="InsightAgent",
