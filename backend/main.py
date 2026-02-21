@@ -1,20 +1,27 @@
 """
 FastAPI application – Banking Data Assistant backend.
+Integrates with the AI Engine (ai_engine.main.process_query) for
+natural-language-to-SQL conversion, then executes validated SQL against
+the local SQLite database.
 """
+import logging
 import os
+import sqlite3
+from typing import Optional
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-import sqlite3
 
 from database import get_connection
-from sql_generator import natural_language_to_sql
 from sql_validator import validate_query
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Banking Data Assistant API",
-    description="Natural-language interface to banking data via OpenAI + SQLite.",
+    description="Natural-language interface to banking data via AI Engine + SQLite.",
     version="1.0.0",
 )
 
@@ -43,6 +50,8 @@ class QueryResponse(BaseModel):
     columns: list[str]
     rows: list[list]
     row_count: int
+    summary: Optional[str] = None
+    chart_suggestion: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -58,27 +67,39 @@ def health() -> dict:
 @app.post("/query", response_model=QueryResponse)
 def run_query(body: QueryRequest):
     """
-    Accept a natural-language query, generate SQL via OpenAI, validate it,
-    execute it against the banking database, and return structured results.
+    Accept a natural-language query, process it through the AI Engine to
+    generate and validate SQL, execute it against the banking database,
+    and return structured results with an optional summary and chart hint.
     """
-    # 1. Translate to SQL
+    # 1. Call AI Engine – graceful degradation on failure
     try:
-        sql = natural_language_to_sql(body.query)
-    except EnvironmentError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        from ai_engine.main import process_query
+        result = process_query(body.query)
     except Exception as exc:
+        logger.error("AI engine unavailable: %s", exc, exc_info=True)
         raise HTTPException(
-            status_code=502, detail=f"SQL generation failed: {exc}"
+            status_code=502, detail=f"AI engine error: {exc}"
         ) from exc
 
-    # 2. Validate – read-only guard
+    # 2. Check for AI engine error
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    # 3. Ensure validated SQL is present
+    sql = result.get("validated_sql")
+    if not sql:
+        raise HTTPException(
+            status_code=400, detail="AI engine did not produce a valid SQL query."
+        )
+
+    # 4. Validate – read-only guard (defence in depth)
     is_safe, reason = validate_query(sql)
     if not is_safe:
         raise HTTPException(
             status_code=400, detail=f"Unsafe query rejected: {reason}"
         )
 
-    # 3. Execute
+    # 5. Execute
     conn = get_connection()
     try:
         cursor = conn.execute(sql)
@@ -94,6 +115,8 @@ def run_query(body: QueryRequest):
         columns=columns,
         rows=[list(row) for row in rows],
         row_count=len(rows),
+        summary=result.get("summary"),
+        chart_suggestion=result.get("chart_suggestion"),
     )
 
 

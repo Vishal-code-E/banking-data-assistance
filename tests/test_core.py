@@ -1,12 +1,13 @@
 """
-Tests for sql_validator and database modules.
+Tests for sql_validator, database, sql_generator, and AI engine integration.
 Run with: pytest tests/ -v
 """
 import sys
 import os
 
-# Ensure backend is importable
+# Ensure backend is importable (also covers ai_engine package at repo root)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
 from sql_validator import validate_query
@@ -138,3 +139,92 @@ class TestEnforceLimit:
         sql = "SELECT * FROM transactions"
         result = _enforce_limit(sql)
         assert "LIMIT 100" in result
+
+
+# ---------------------------------------------------------------------------
+# AI engine integration tests
+# ---------------------------------------------------------------------------
+
+class TestProcessQuery:
+    def test_returns_required_keys(self):
+        from ai_engine.main import process_query
+        result = process_query("Show last 5 transactions above 10000")
+        assert set(result.keys()) >= {"validated_sql", "summary", "chart_suggestion", "error"}
+
+    def test_successful_query_has_no_error(self):
+        from ai_engine.main import process_query
+        result = process_query("Show last 5 transactions above 10000")
+        assert result["error"] is None
+
+    def test_successful_query_has_validated_sql(self):
+        from ai_engine.main import process_query
+        result = process_query("Show last 5 transactions above 10000")
+        assert result["validated_sql"] is not None
+        assert result["validated_sql"].strip().upper().startswith("SELECT")
+
+    def test_successful_query_has_summary(self):
+        from ai_engine.main import process_query
+        result = process_query("Show last 5 transactions above 10000")
+        assert result["summary"] is not None
+
+    def test_successful_query_has_chart_suggestion(self):
+        from ai_engine.main import process_query
+        result = process_query("Show last 5 transactions above 10000")
+        assert result["chart_suggestion"] is not None
+
+
+class TestBackendQueryEndpoint:
+    def get_client(self):
+        from fastapi.testclient import TestClient
+        from main import app
+        return TestClient(app)
+
+    def test_query_returns_200(self):
+        client = self.get_client()
+        resp = client.post("/query", json={"query": "Show last 5 transactions above 10000"})
+        assert resp.status_code == 200
+
+    def test_query_response_has_sql(self):
+        client = self.get_client()
+        resp = client.post("/query", json={"query": "Show last 5 transactions above 10000"})
+        data = resp.json()
+        assert "sql" in data
+        assert data["sql"].strip().upper().startswith("SELECT")
+
+    def test_query_response_has_columns(self):
+        client = self.get_client()
+        resp = client.post("/query", json={"query": "Show last 5 transactions above 10000"})
+        data = resp.json()
+        assert "columns" in data
+        assert isinstance(data["columns"], list)
+
+    def test_query_response_has_row_count(self):
+        client = self.get_client()
+        resp = client.post("/query", json={"query": "Show last 5 transactions above 10000"})
+        data = resp.json()
+        assert "row_count" in data
+        assert isinstance(data["row_count"], int)
+
+    def test_query_response_has_summary(self):
+        client = self.get_client()
+        resp = client.post("/query", json={"query": "Show last 5 transactions above 10000"})
+        data = resp.json()
+        assert "summary" in data
+
+    def test_query_response_has_chart_suggestion(self):
+        client = self.get_client()
+        resp = client.post("/query", json={"query": "Show last 5 transactions above 10000"})
+        data = resp.json()
+        assert "chart_suggestion" in data
+
+    def test_query_too_short_returns_422(self):
+        client = self.get_client()
+        resp = client.post("/query", json={"query": "hi"})
+        assert resp.status_code == 422
+
+    def test_average_balance_query(self):
+        client = self.get_client()
+        resp = client.post("/query", json={"query": "What is the average balance for savings accounts?"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["row_count"] >= 0
