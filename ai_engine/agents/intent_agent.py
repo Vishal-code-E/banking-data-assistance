@@ -16,38 +16,18 @@ def load_intent_prompt() -> str:
 
 def call_llm_for_intent(prompt: str) -> str:
     """
-    Abstract LLM call for intent extraction.
-    In production, this would call OpenAI/Anthropic API.
-    
-    For now, we'll simulate with rule-based logic.
+    Call OpenAI LLM for intent extraction.
     """
-    # This is where you'd integrate:
-    # from langchain.chat_models import ChatOpenAI
-    # llm = ChatOpenAI(model="gpt-4")
-    # response = llm.invoke(prompt)
-    
-    # SIMULATION MODE - replace with actual LLM in production
-    # For demo purposes, extract basic intent from common patterns
-    user_query = prompt.split("User Query: ")[-1].strip()
-    
-    # Simple pattern matching for demo
-    query_lower = user_query.lower()
-    
-    if "last" in query_lower and "transactions" in query_lower:
-        if "above" in query_lower or ">" in query_lower:
-            return "Retrieve the most recent transactions where amount exceeds a threshold, ordered by transaction_date DESC with limited results"
-        return "Retrieve the most recent transactions, ordered by transaction_date DESC with limited results"
-    
-    elif "how many" in query_lower and "customers" in query_lower:
-        return "Count total number of customers, optionally filtered by account type or status"
-    
-    elif "average" in query_lower and "balance" in query_lower:
-        return "Calculate average account balance, optionally filtered by account type"
-    
-    elif "failed" in query_lower and "transactions" in query_lower:
-        return "Retrieve transactions where status = 'failed', with date range filter"
-    
-    else:
+    try:
+        from langchain_openai import ChatOpenAI
+        
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        response = llm.invoke(prompt)
+        return response.content.strip()
+    except Exception as e:
+        logger.log_error(f"LLM call failed: {e}", {})
+        # Fallback to basic extraction
+        user_query = prompt.split("User Query: ")[-1].strip()
         return f"Extract and analyze data based on: {user_query}"
 
 

@@ -44,10 +44,10 @@ CREATE TABLE IF NOT EXISTS transactions (
 -- ============================================================
 -- INDEXES FOR PERFORMANCE
 -- ============================================================
-CREATE INDEX IF NOT EXISTS idx_accounts_customer_id ON accounts(customer_id);
-CREATE INDEX IF NOT EXISTS idx_transactions_account_id ON transactions(account_id);
-CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
-CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at);
+CREATE INDEX IF NOT EXISTS idx_accounts_customer_id ON accounts (customer_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_account_id ON transactions (account_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions (type);
+CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions (created_at);
 
 -- ============================================================
 -- SEED DATA FOR DEVELOPMENT

@@ -15,8 +15,7 @@ from ai_engine.utils.logger import logger
 
 def execution_tool_node(state: BankingAssistantState) -> dict:
     """
-    Simulated database execution node.
-    In production, this would execute the validated SQL against the database.
+    Database execution node - executes validated SQL against the real database.
     
     Args:
         state: Current state containing validated_sql
@@ -26,46 +25,45 @@ def execution_tool_node(state: BankingAssistantState) -> dict:
     """
     validated_sql = state["validated_sql"]
     
-    # SIMULATION MODE - Mock execution results
-    # In production, you would:
-    # result = db.execute(validated_sql)
+    try:
+        # Execute against realpostgres database
+        from backend.db import engine
+        from sqlalchemy import text
+        
+        with engine.connect() as conn:
+            result = conn.execute(text(validated_sql))
+            
+            # Fetch all rows and convert to list of dicts
+            rows = []
+            columns = list(result.keys()) if result.keys() else []
+            
+            for row in result:
+                row_dict = {}
+                for i, col in enumerate(columns):
+                    row_dict[col] = row[i]
+                rows.append(row_dict)
+            
+            execution_result = {
+                "rows": rows,
+                "row_count": len(rows)
+            }
     
-    # Generate mock result based on query type
-    if "COUNT(*)" in validated_sql:
-        mock_result = {
-            "rows": [{"customer_count": 342}],
-            "row_count": 1
-        }
-    elif "AVG(balance)" in validated_sql:
-        mock_result = {
-            "rows": [{"avg_balance": 8450.75}],
-            "row_count": 1
-        }
-    elif "SELECT * FROM transactions" in validated_sql:
-        mock_result = {
-            "rows": [
-                {"transaction_id": 1001, "amount": 15000.00, "transaction_date": "2026-02-20", "merchant": "Store A"},
-                {"transaction_id": 1002, "amount": 12500.00, "transaction_date": "2026-02-19", "merchant": "Store B"},
-                {"transaction_id": 1003, "amount": 11000.00, "transaction_date": "2026-02-18", "merchant": "Store C"},
-                {"transaction_id": 1004, "amount": 10500.00, "transaction_date": "2026-02-17", "merchant": "Store D"},
-                {"transaction_id": 1005, "amount": 10200.00, "transaction_date": "2026-02-16", "merchant": "Store E"}
-            ],
-            "row_count": 5
-        }
-    else:
-        mock_result = {
+    except Exception as e:
+        logger.log_error(f"Database execution failed: {e}", {"sql": validated_sql})
+        execution_result = {
             "rows": [],
-            "row_count": 0
+            "row_count": 0,
+            "error": str(e)
         }
     
     logger.log_agent_execution(
         agent_name="ExecutionTool",
         input_data={"validated_sql": validated_sql},
-        output_data={"execution_result": mock_result}
+        output_data={"execution_result": execution_result}
     )
     
     return {
-        "execution_result": mock_result
+        "execution_result": execution_result
     }
 
 

@@ -17,32 +17,27 @@ def load_sql_prompt() -> str:
 
 def call_llm_for_sql(prompt: str) -> str:
     """
-    Abstract LLM call for SQL generation.
-    In production, this would call OpenAI/Anthropic API.
-    
-    For now, we'll simulate with rule-based logic.
+    Call OpenAI LLM for SQL generation.
     """
-    # SIMULATION MODE - replace with actual LLM in production
-    # Extract intent from prompt to generate SQL
-    
-    if "most recent transactions where amount exceeds" in prompt.lower():
-        return "SELECT * FROM transactions WHERE amount > 10000 ORDER BY transaction_date DESC LIMIT 5"
-    
-    elif "count total number of customers" in prompt.lower():
-        if "premium" in prompt.lower():
-            return "SELECT COUNT(*) as customer_count FROM customers WHERE account_type = 'premium'"
-        return "SELECT COUNT(*) as customer_count FROM customers"
-    
-    elif "calculate average account balance" in prompt.lower():
-        if "savings" in prompt.lower():
-            return "SELECT AVG(balance) as avg_balance FROM accounts WHERE account_type = 'savings'"
-        return "SELECT AVG(balance) as avg_balance FROM accounts"
-    
-    elif "status = 'failed'" in prompt.lower():
-        return "SELECT * FROM transactions WHERE status = 'failed' AND transaction_date >= DATE('now', '-7 days')"
-    
-    else:
-        # Generic fallback
+    try:
+        from langchain_openai import ChatOpenAI
+        
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        response = llm.invoke(prompt)
+        
+        # Extract SQL from response (handle code blocks)
+        sql = response.content.strip()
+        
+        # Remove markdown code blocks if present
+        if "```sql" in sql:
+            sql = sql.split("```sql")[1].split("```")[0].strip()
+        elif "```" in sql:
+            sql = sql.split("```")[1].split("```")[0].strip()
+        
+        return sql
+    except Exception as e:
+        logger.log_error(f"LLM call failed: {e}", {})
+        # Fallback to safe default
         return "SELECT * FROM transactions LIMIT 10"
 
 

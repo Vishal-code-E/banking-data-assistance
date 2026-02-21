@@ -6,45 +6,37 @@ Provides schema information to agents for SQL generation and validation.
 from typing import Dict, Any
 
 
-# Banking database schema
-# In production, this would be loaded from database metadata
+# Banking database schema - matches actual schema.sql
+# This is the exact schema used in the database
 BANKING_SCHEMA: Dict[str, Dict[str, Any]] = {
     "customers": {
         "columns": {
-            "customer_id": "INTEGER PRIMARY KEY",
-            "name": "VARCHAR(255)",
-            "email": "VARCHAR(255)",
-            "phone": "VARCHAR(20)",
-            "account_type": "VARCHAR(50)",
-            "created_at": "TIMESTAMP",
-            "status": "VARCHAR(20)"
+            "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+            "name": "TEXT NOT NULL",
+            "email": "TEXT NOT NULL UNIQUE",
+            "created_at": "DATETIME DEFAULT CURRENT_TIMESTAMP"
         },
-        "description": "Customer information and account details"
+        "description": "Customer information"
     },
     "accounts": {
         "columns": {
-            "account_id": "INTEGER PRIMARY KEY",
-            "customer_id": "INTEGER FOREIGN KEY",
-            "account_number": "VARCHAR(50)",
-            "balance": "DECIMAL(15,2)",
-            "account_type": "VARCHAR(50)",
-            "created_at": "TIMESTAMP",
-            "status": "VARCHAR(20)"
+            "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+            "customer_id": "INTEGER NOT NULL FOREIGN KEY -> customers(id)",
+            "account_number": "TEXT NOT NULL UNIQUE",
+            "balance": "DECIMAL(15,2) NOT NULL DEFAULT 0.00",
+            "created_at": "DATETIME DEFAULT CURRENT_TIMESTAMP"
         },
-        "description": "Bank account information"
+        "description": "Customer bank accounts"
     },
     "transactions": {
         "columns": {
-            "transaction_id": "INTEGER PRIMARY KEY",
-            "account_id": "INTEGER FOREIGN KEY",
-            "transaction_type": "VARCHAR(50)",
-            "amount": "DECIMAL(15,2)",
-            "description": "TEXT",
-            "transaction_date": "TIMESTAMP",
-            "status": "VARCHAR(20)",
-            "merchant": "VARCHAR(255)"
+            "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+            "account_id": "INTEGER NOT NULL FOREIGN KEY -> accounts(id)",
+            "type": "TEXT NOT NULL CHECK(type IN ('credit', 'debit'))",
+            "amount": "DECIMAL(15,2) NOT NULL",
+            "created_at": "DATETIME DEFAULT CURRENT_TIMESTAMP"
         },
-        "description": "Transaction history for all accounts"
+        "description": "All account transactions (credit or debit)"
     }
 }
 
