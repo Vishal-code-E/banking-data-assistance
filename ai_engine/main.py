@@ -29,6 +29,7 @@ def format_output(final_state: dict) -> dict:
     
     return {
         "validated_sql": final_state.get("validated_sql"),
+        "execution_result": final_state.get("execution_result"),
         "summary": final_state.get("summary"),
         "chart_suggestion": final_state.get("chart_suggestion"),
         "error": error
@@ -55,6 +56,7 @@ def run_banking_assistant(user_query: str, verbose: bool = True) -> dict:
     if not user_query or not user_query.strip():
         return {
             "validated_sql": None,
+            "execution_result": None,
             "summary": None,
             "chart_suggestion": None,
             "error": "Query cannot be empty or whitespace-only"
@@ -101,6 +103,7 @@ def run_banking_assistant(user_query: str, verbose: bool = True) -> dict:
         
         return {
             "validated_sql": None,
+            "execution_result": None,
             "summary": None,
             "chart_suggestion": None,
             "error": error_msg

@@ -39,3 +39,16 @@ export async function executeQuery(sql) {
     body: JSON.stringify({ sql }),
   });
 }
+
+/**
+ * Send a natural-language question through the AI engine.
+ * @param {string} query — plain English question
+ * @returns {Promise<{validated_sql, execution_result, summary, chart_suggestion, error}>}
+ */
+export async function askQuestion(query) {
+  return request(`${API_BASE}/ask`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query }),
+  });
+}

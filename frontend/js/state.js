@@ -39,7 +39,7 @@ export function addUserMessage(text) {
 }
 
 export function addAIMessage(text, sql = null) {
-  const msg = { role: 'ai', text, sql, timestamp: Date.now() };
+  const msg = { role: 'ai', text, sql, _result: null, timestamp: Date.now() };
   state.messages.push(msg);
   return msg;
 }

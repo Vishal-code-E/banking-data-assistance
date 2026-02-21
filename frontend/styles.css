@@ -866,6 +866,76 @@ input, textarea { font: inherit; color: inherit; }
 }
 
 /* ============================================================
+   STITCH DATA TABLE (in chat bubbles)
+   ============================================================ */
+.stitch-data-table-wrap {
+  width: 100%;
+  max-width: 56rem;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-top: 0.25rem;
+}
+
+.stitch-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.stitch-data-table th {
+  background: var(--border-light);
+  font-weight: 600;
+  color: var(--text-700);
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+
+.stitch-data-table td {
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-700);
+  white-space: nowrap;
+}
+
+.stitch-data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.stitch-data-table tr:hover td {
+  background: rgba(26,43,61,0.03);
+}
+
+.stitch-table-more {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  color: var(--text-400);
+  text-align: center;
+  border-top: 1px solid var(--border-light);
+}
+
+/* ============================================================
+   STITCH CHART (in chat bubbles)
+   ============================================================ */
+.stitch-chart-wrap {
+  width: 100%;
+  max-width: 44rem;
+  height: 280px;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  margin-top: 0.25rem;
+}
+
+.stitch-chart-canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 768px) {

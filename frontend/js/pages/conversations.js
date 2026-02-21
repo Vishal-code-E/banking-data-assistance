@@ -1,11 +1,11 @@
 /* ============================================================
    CONVERSATIONS PAGE — Stitch AI
    ChatGPT-style conversational interface.
-   User types a natural-language question → we send SQL →
-   backend returns data → we display an AI prose summary.
+   User types a natural-language question → /ask endpoint →
+   AI engine (LangGraph) → results rendered with table + chart.
    ============================================================ */
 
-import { executeQuery, getTables } from '../api.js';
+import { askQuestion, executeQuery, getTables } from '../api.js';
 import {
   addUserMessage,
   addAIMessage,
@@ -129,13 +129,14 @@ function renderWelcome() {
 }
 
 /* ============================================================
-   SEND HANDLER
+   SEND HANDLER — routes through /ask (AI engine)
    ============================================================ */
 async function onSend() {
   const text = inputEl.value.trim();
   if (!text) return;
 
   inputEl.value = '';
+  sendBtn.disabled = true;
 
   /* clear welcome on first message */
   if (getMessages().length === 0) chatFeedEl.innerHTML = '';
@@ -149,19 +150,23 @@ async function onSend() {
   const progressId = showProgress();
 
   try {
-    /* determine SQL from user question */
-    const sql = await naturalLanguageToSQL(text);
+    /* Decide route: raw SQL → /query, natural language → /ask */
+    const isRawSQL = /^\s*(SELECT|WITH)\s/i.test(text);
 
-    updateProgress(progressId, 40, 'Validating query…');
+    updateProgress(progressId, 20, isRawSQL ? 'Executing SQL…' : 'AI is analysing your question…');
 
-    /* execute through backend */
-    const result = await executeQuery(sql);
+    let result;
+    if (isRawSQL) {
+      result = await executeQuery(text);
+    } else {
+      result = await askQuestion(text);
+    }
 
     updateProgress(progressId, 80, 'Formatting results…');
 
     /* record history */
     addHistory({
-      sql: result.validated_sql || sql,
+      sql: result.validated_sql || text,
       rowCount: result.execution_result?.row_count ?? 0,
       execTime: result.execution_result?.execution_time_ms ?? 0,
       error: result.error,
@@ -171,149 +176,42 @@ async function onSend() {
 
     if (result.error) {
       const aiMsg = addAIMessage(
-        `I encountered an issue running that query:\n\n**${result.error}**\n\nCould you rephrase or try a different question?`,
-        result.validated_sql || sql,
+        `I encountered an issue:\n\n**${result.error}**\n\nCould you rephrase or try a different question?`,
+        result.validated_sql || null,
       );
+      aiMsg._result = result;
       appendBubble(aiMsg);
     } else {
       const prose = buildProseResponse(text, result);
-      const aiMsg = addAIMessage(prose, result.validated_sql || sql);
+      const aiMsg = addAIMessage(prose, result.validated_sql);
+      aiMsg._result = result;
       appendBubble(aiMsg);
     }
   } catch (err) {
     removeProgress(progressId);
     const aiMsg = addAIMessage(
-      `Sorry, something went wrong while processing your request:\n\n**${err.message}**\n\nPlease try again.`,
+      `Sorry, something went wrong:\n\n**${err.message}**\n\nPlease try again.`,
     );
     appendBubble(aiMsg);
   }
 
+  sendBtn.disabled = false;
   scrollToBottom();
 }
 
 /* ============================================================
-   NATURAL LANGUAGE → SQL  (simple client-side mapping)
-   ============================================================ */
-async function naturalLanguageToSQL(question) {
-  /* Make sure we have table info */
-  let tables = getTablesCache();
-  if (!tables) {
-    const data = await getTables();
-    tables = data.tables || data;
-    setTablesCache(tables);
-  }
-
-  const q = question.toLowerCase();
-
-  /* ----- customer queries ----- */
-  if (/all\s+customers|show.*customers|list.*customers/.test(q)) {
-    return 'SELECT * FROM customers';
-  }
-  if (/how\s+many\s+customers|customer\s+count|count.*customers/.test(q)) {
-    return 'SELECT COUNT(*) AS customer_count FROM customers';
-  }
-
-  /* ----- account queries ----- */
-  if (/total\s+balance|sum.*balance/.test(q)) {
-    return 'SELECT SUM(balance) AS total_balance FROM accounts';
-  }
-  if (/all\s+accounts|show.*accounts|list.*accounts/.test(q)) {
-    return 'SELECT * FROM accounts';
-  }
-  if (/how\s+many\s+accounts.*each|accounts.*per\s+customer/.test(q)) {
-    return `SELECT c.name, COUNT(a.id) AS account_count
-FROM customers c
-LEFT JOIN accounts a ON a.customer_id = c.id
-GROUP BY c.id, c.name
-ORDER BY account_count DESC`;
-  }
-  if (/how\s+many\s+accounts|account\s+count|count.*accounts/.test(q)) {
-    return 'SELECT COUNT(*) AS account_count FROM accounts';
-  }
-  if (/average\s+balance|avg.*balance|mean.*balance/.test(q)) {
-    return 'SELECT ROUND(AVG(balance), 2) AS average_balance FROM accounts';
-  }
-  if (/highest\s+balance|max.*balance|largest\s+balance|top\s+balance/.test(q)) {
-    return `SELECT a.*, c.name AS customer_name
-FROM accounts a
-JOIN customers c ON c.id = a.customer_id
-ORDER BY a.balance DESC LIMIT 5`;
-  }
-  if (/lowest\s+balance|min.*balance|smallest\s+balance/.test(q)) {
-    return `SELECT a.*, c.name AS customer_name
-FROM accounts a
-JOIN customers c ON c.id = a.customer_id
-ORDER BY a.balance ASC LIMIT 5`;
-  }
-
-  /* ----- transaction queries ----- */
-  if (/recent\s+transactions|latest\s+transactions/.test(q)) {
-    const amountMatch = q.match(/above\s+\$?(\d+)|over\s+\$?(\d+)|more\s+than\s+\$?(\d+)/);
-    const threshold = amountMatch ? (amountMatch[1] || amountMatch[2] || amountMatch[3]) : null;
-    if (threshold) {
-      return `SELECT t.*, a.account_number
-FROM transactions t
-JOIN accounts a ON a.id = t.account_id
-WHERE t.amount > ${threshold}
-ORDER BY t.created_at DESC LIMIT 20`;
-    }
-    return `SELECT t.*, a.account_number
-FROM transactions t
-JOIN accounts a ON a.id = t.account_id
-ORDER BY t.created_at DESC LIMIT 20`;
-  }
-  if (/transactions?\s+above|transactions?\s+over|transactions?\s+more\s+than/.test(q)) {
-    const amountMatch = q.match(/\$?(\d+)/);
-    const threshold = amountMatch ? amountMatch[1] : '500';
-    return `SELECT t.*, a.account_number
-FROM transactions t
-JOIN accounts a ON a.id = t.account_id
-WHERE t.amount > ${threshold}
-ORDER BY t.amount DESC`;
-  }
-  if (/all\s+transactions|show.*transactions|list.*transactions/.test(q)) {
-    return 'SELECT * FROM transactions ORDER BY created_at DESC LIMIT 50';
-  }
-  if (/how\s+many\s+transactions|transaction\s+count|count.*transactions/.test(q)) {
-    return 'SELECT COUNT(*) AS transaction_count FROM transactions';
-  }
-  if (/total.*transaction.*amount|sum.*transaction/.test(q)) {
-    return 'SELECT SUM(amount) AS total_amount FROM transactions';
-  }
-  if (/transaction.*type|type.*transaction|deposit.*withdraw/.test(q)) {
-    return `SELECT type, COUNT(*) AS count, SUM(amount) AS total_amount
-FROM transactions GROUP BY type`;
-  }
-
-  /* ----- joined / complex ----- */
-  if (/customer.*transaction|transaction.*customer/.test(q)) {
-    return `SELECT c.name, COUNT(t.id) AS txn_count, SUM(t.amount) AS total_amount
-FROM customers c
-JOIN accounts a ON a.customer_id = c.id
-JOIN transactions t ON t.account_id = a.id
-GROUP BY c.id, c.name
-ORDER BY total_amount DESC`;
-  }
-
-  /* ----- fallback: if it looks like raw SQL, pass through ----- */
-  if (/^\s*(select|insert|update|delete|with)\s/i.test(question)) {
-    return question.trim();
-  }
-
-  /* ----- ultimate fallback ----- */
-  return `SELECT * FROM customers LIMIT 10`;
-}
-
-/* ============================================================
-   BUILD PROSE RESPONSE  (convert raw data → natural text)
+   BUILD PROSE RESPONSE
    ============================================================ */
 function buildProseResponse(question, result) {
   const { execution_result, summary } = result;
   const data = execution_result?.data ?? [];
   const rowCount = execution_result?.row_count ?? 0;
-  const execTime = execution_result?.execution_time_ms ?? 0;
+  const execTime = execution_result?.execution_time_ms
+    ?? (execution_result?.execution_time_seconds
+        ? Math.round(execution_result.execution_time_seconds * 1000)
+        : 0);
 
-  /* If the backend already provides a summary, prefer it */
+  /* If the AI engine already provides a rich summary, prefer it */
   if (summary && summary.length > 30) {
     return summary;
   }
@@ -394,14 +292,6 @@ function formatValue(v) {
   return String(v);
 }
 
-function timeAgo(ts) {
-  const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60) return 'just now';
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return new Date(ts).toLocaleDateString();
-}
-
 /* ============================================================
    BUBBLE RENDERING
    ============================================================ */
@@ -417,7 +307,7 @@ function appendBubble(msg) {
       <div class="bubble-user">${escapeHtml(msg.text)}</div>
     `;
   } else {
-    /* AI */
+    /* ---- AI bubble ---- */
     const sqlBlock = msg.sql
       ? `<div class="sql-block">
            <div class="sql-header">
@@ -432,6 +322,12 @@ function appendBubble(msg) {
          </div>`
       : '';
 
+    /* data table */
+    const tableBlock = buildDataTable(msg._result);
+
+    /* chart */
+    const chartBlock = buildChartBlock(msg._result);
+
     group.innerHTML = `
       <div class="msg-label">
         <span class="material-symbols-outlined">smart_toy</span>
@@ -440,6 +336,8 @@ function appendBubble(msg) {
       <div class="ai-content">
         <div class="ai-text">${renderMarkdown(msg.text)}</div>
         ${sqlBlock}
+        ${tableBlock}
+        ${chartBlock}
       </div>
     `;
 
@@ -455,13 +353,118 @@ function appendBubble(msg) {
         });
       });
     }
+
+    /* render chart.js canvas (if chart block present) */
+    const canvas = group.querySelector('.stitch-chart-canvas');
+    if (canvas && msg._result) renderChart(canvas, msg._result);
   }
 
   chatFeedEl.appendChild(group);
 }
 
 /* ============================================================
-   PROGRESS INDICATOR (fake pipeline progress)
+   DATA TABLE
+   ============================================================ */
+function buildDataTable(result) {
+  if (!result || result.error) return '';
+  const data = result.execution_result?.data ?? [];
+  if (data.length === 0) return '';
+
+  const keys = Object.keys(data[0]);
+  const showRows = data.slice(0, 50);
+  const remaining = data.length - showRows.length;
+
+  let html = `<div class="stitch-data-table-wrap">
+    <table class="stitch-data-table">
+      <thead><tr>${keys.map(k => `<th>${escapeHtml(humanize(k))}</th>`).join('')}</tr></thead>
+      <tbody>`;
+  showRows.forEach(row => {
+    html += `<tr>${keys.map(k => `<td>${escapeHtml(formatValue(row[k]))}</td>`).join('')}</tr>`;
+  });
+  html += `</tbody></table>`;
+  if (remaining > 0) html += `<div class="stitch-table-more">+${remaining} more rows</div>`;
+  html += `</div>`;
+  return html;
+}
+
+/* ============================================================
+   CHART BLOCK  (Chart.js — degrades gracefully)
+   ============================================================ */
+function buildChartBlock(result) {
+  if (!result || result.error) return '';
+  const suggestion = result.chart_suggestion;
+  if (!suggestion || suggestion === 'none' || suggestion === 'table') return '';
+  const data = result.execution_result?.data ?? [];
+  if (data.length === 0 || data.length > 30) return '';
+
+  const id = 'chart-' + Math.random().toString(36).slice(2, 10);
+  return `<div class="stitch-chart-wrap">
+    <canvas class="stitch-chart-canvas" id="${id}" height="260"></canvas>
+  </div>`;
+}
+
+function renderChart(canvas, result) {
+  if (typeof Chart === 'undefined') return;
+
+  const suggestion = result.chart_suggestion;
+  const data = result.execution_result?.data ?? [];
+  if (data.length === 0) return;
+
+  const keys = Object.keys(data[0]);
+  if (keys.length < 2) return;
+
+  let labelKey = keys[0];
+  let valueKey = keys[1];
+  for (const k of keys) {
+    if (typeof data[0][k] === 'string') { labelKey = k; break; }
+  }
+  for (const k of keys) {
+    if (typeof data[0][k] === 'number') { valueKey = k; break; }
+  }
+
+  const labels = data.map(r => String(r[labelKey]));
+  const values = data.map(r => Number(r[valueKey]) || 0);
+
+  const palette = [
+    '#1a2b3d', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444',
+    '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1',
+  ];
+
+  const type = suggestion === 'pie' ? 'pie'
+    : suggestion === 'line' ? 'line'
+    : 'bar';
+
+  new Chart(canvas, {
+    type,
+    data: {
+      labels,
+      datasets: [{
+        label: humanize(valueKey),
+        data: values,
+        backgroundColor: type === 'pie'
+          ? palette.slice(0, values.length)
+          : palette[0] + 'cc',
+        borderColor: type === 'pie' ? '#fff' : palette[0],
+        borderWidth: type === 'pie' ? 2 : 1,
+        borderRadius: type === 'bar' ? 6 : 0,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: type === 'pie', position: 'bottom' },
+      },
+      scales: type === 'pie' ? {} : {
+        y: { beginAtZero: true, grid: { color: '#e2e8f0' } },
+        x: { grid: { display: false } },
+      },
+    }
+  });
+}
+
+/* ============================================================
+   PROGRESS INDICATOR
    ============================================================ */
 let progressCounter = 0;
 
@@ -485,7 +488,7 @@ function showProgress() {
           <span class="progress-pct">10%</span>
         </div>
         <div class="progress-track"><div class="progress-fill" style="width:10%"></div></div>
-        <div class="progress-hint">Generating SQL from your question…</div>
+        <div class="progress-hint">Routing through AI agents…</div>
       </div>
     </div>
   `;

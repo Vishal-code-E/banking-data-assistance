@@ -40,6 +40,36 @@ class QueryRequest(BaseModel):
     }
 
 
+class AskRequest(BaseModel):
+    """
+    Request model for natural-language questions.
+    Routed through the AI engine (LangGraph multi-agent pipeline).
+    """
+    query: str = Field(
+        ...,
+        description="Natural-language question about banking data",
+        min_length=1,
+        max_length=2000,
+        examples=["Show me the top 5 customers by balance"]
+    )
+
+    @field_validator('query')
+    @classmethod
+    def validate_query_not_empty(cls, v: str) -> str:
+        """Ensure query is not just whitespace"""
+        if not v or not v.strip():
+            raise ValueError("Query cannot be empty or whitespace only")
+        return v.strip()
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "query": "What are the top 5 customers by total balance?"
+            }
+        }
+    }
+
+
 # ============================================================
 # RESPONSE SCHEMAS — Standardized Contract
 # ============================================================

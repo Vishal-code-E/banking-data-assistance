@@ -23,8 +23,8 @@ def execution_tool_node(state: BankingAssistantState) -> dict:
     Returns:
         State updates with execution_result
     """
-    import signal
     import time
+    import threading
 
     QUERY_TIMEOUT_SECONDS = 30
     MAX_ROWS = 1000
@@ -37,18 +37,10 @@ def execution_tool_node(state: BankingAssistantState) -> dict:
         from backend.db import engine
         from sqlalchemy import text
 
-        # Timeout handler (Unix-only)
-        def timeout_handler(signum, frame):
-            raise TimeoutError(f"Query exceeded {QUERY_TIMEOUT_SECONDS}s timeout")
-
-        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(QUERY_TIMEOUT_SECONDS)
-
-        try:
+        def _run_query():
             with engine.connect() as conn:
                 result = conn.execute(text(validated_sql))
 
-                # Fetch rows with max row cap
                 rows = []
                 columns = list(result.keys()) if result.keys() else []
 
@@ -60,15 +52,34 @@ def execution_tool_node(state: BankingAssistantState) -> dict:
                         row_dict[col] = row[i]
                     rows.append(row_dict)
 
-                execution_time = round(time.time() - start_time, 3)
-                execution_result = {
-                    "rows": rows,
-                    "row_count": len(rows),
-                    "execution_time_seconds": execution_time
-                }
-        finally:
-            signal.alarm(0)
-            signal.signal(signal.SIGALRM, old_handler)
+                return rows
+
+        # Use a thread with join timeout (works in non-main threads)
+        query_result = [None]
+        query_error = [None]
+
+        def _target():
+            try:
+                query_result[0] = _run_query()
+            except Exception as e:
+                query_error[0] = e
+
+        t = threading.Thread(target=_target, daemon=True)
+        t.start()
+        t.join(timeout=QUERY_TIMEOUT_SECONDS)
+
+        if t.is_alive():
+            raise TimeoutError(f"Query exceeded {QUERY_TIMEOUT_SECONDS}s timeout")
+        if query_error[0]:
+            raise query_error[0]
+
+        rows = query_result[0]
+        execution_time = round(time.time() - start_time, 3)
+        execution_result = {
+            "rows": rows,
+            "row_count": len(rows),
+            "execution_time_seconds": execution_time
+        }
 
     except TimeoutError as e:
         execution_time = round(time.time() - start_time, 3)

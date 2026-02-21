@@ -17,6 +17,7 @@ from backend.execution import execute_query, QueryResult
 from backend.schemas import (
     QueryRequest,
     QueryResponse,
+    AskRequest,
     HealthResponse,
     InfoResponse
 )
@@ -288,6 +289,86 @@ async def execute_sql_query(request: QueryRequest):
             summary=None,
             chart_suggestion=None,
             error="An unexpected error occurred during query execution"
+        )
+
+
+# ============================================================
+# /ask — NATURAL LANGUAGE → AI ENGINE
+# ============================================================
+
+@app.post(
+    "/ask",
+    response_model=QueryResponse,
+    tags=["Query"],
+    responses={
+        200: {
+            "description": "AI-generated query result (success or error)",
+            "model": QueryResponse
+        },
+        500: {
+            "description": "Internal server error",
+            "model": QueryResponse
+        }
+    }
+)
+async def ask_question(request: AskRequest):
+    """
+    Accept a natural-language question, route it through the
+    LangGraph multi-agent AI engine, and return the unified response.
+
+    ## Pipeline
+    1. IntentAgent — classifies user intent
+    2. SQLAgent — generates SQL from intent + schema
+    3. ValidationAgent — validates and secures the SQL
+    4. ExecutionTool — runs the query against SQLite
+    5. InsightAgent — produces a human-readable summary
+
+    ## Response Contract
+    Same as `/query`:
+    ```json
+    {
+      "validated_sql": "...",
+      "execution_result": {...},
+      "summary": "...",
+      "chart_suggestion": "...",
+      "error": null
+    }
+    ```
+    """
+    import asyncio
+
+    try:
+        logger.info(f"Received ask request: {request.query[:100]}...")
+
+        # Run the synchronous AI engine in a thread pool so we don't block
+        from ai_engine.main import run_banking_assistant
+        result = await asyncio.to_thread(
+            run_banking_assistant, request.query, False
+        )
+
+        # Normalize execution_result: AI engine uses "rows", frontend expects "data"
+        exec_result = result.get("execution_result")
+        if exec_result and "rows" in exec_result and "data" not in exec_result:
+            exec_result["data"] = exec_result.pop("rows")
+        if exec_result and "execution_time_seconds" in exec_result and "execution_time_ms" not in exec_result:
+            exec_result["execution_time_ms"] = round(exec_result["execution_time_seconds"] * 1000, 2)
+
+        return QueryResponse(
+            validated_sql=result.get("validated_sql"),
+            execution_result=exec_result,
+            summary=result.get("summary"),
+            chart_suggestion=result.get("chart_suggestion"),
+            error=result.get("error"),
+        )
+
+    except Exception as e:
+        logger.error(f"Ask execution failed: {e}", exc_info=True)
+        return QueryResponse(
+            validated_sql=None,
+            execution_result=None,
+            summary=None,
+            chart_suggestion=None,
+            error="An unexpected error occurred while processing your question"
         )
 
 
