@@ -1,439 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Banking Data Assistant</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f0f4f8;
-      color: #1a202c;
-      min-height: 100vh;
-    }
-
-    header {
-      background: linear-gradient(135deg, #1a56db 0%, #0d3b86 100%);
-      color: #fff;
-      padding: 1.25rem 2rem;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,.25);
-    }
-    header svg { flex-shrink: 0; }
-    header h1 { font-size: 1.5rem; font-weight: 700; }
-    header p  { font-size: 0.875rem; opacity: 0.85; margin-top: 0.2rem; }
-
-    main {
-      max-width: 1100px;
-      margin: 2rem auto;
-      padding: 0 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-    }
-
-    /* Query Card */
-    .card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 1.5rem;
-      box-shadow: 0 1px 6px rgba(0,0,0,.08);
-    }
-
-    .query-row {
-      display: flex;
-      gap: 0.75rem;
-      align-items: flex-start;
-    }
-    #queryInput {
-      flex: 1;
-      padding: 0.75rem 1rem;
-      font-size: 1rem;
-      border: 2px solid #d1d5db;
-      border-radius: 8px;
-      resize: vertical;
-      min-height: 3rem;
-      transition: border-color .2s;
-    }
-    #queryInput:focus { outline: none; border-color: #1a56db; }
-
-    #submitBtn {
-      padding: 0.75rem 1.5rem;
-      background: #1a56db;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: background .2s;
-    }
-    #submitBtn:hover:not(:disabled) { background: #1648c0; }
-    #submitBtn:disabled { background: #93a8d4; cursor: not-allowed; }
-
-    .examples {
-      margin-top: 0.75rem;
-      font-size: 0.82rem;
-      color: #6b7280;
-    }
-    .examples span {
-      display: inline-block;
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      border-radius: 6px;
-      padding: 0.25rem 0.6rem;
-      margin: 0.2rem 0.2rem 0 0;
-      cursor: pointer;
-      transition: background .15s;
-    }
-    .examples span:hover { background: #dbeafe; }
-
-    /* SQL pill */
-    #sqlBlock {
-      display: none;
-      margin-top: 1rem;
-      background: #1e293b;
-      color: #a5f3fc;
-      border-radius: 8px;
-      padding: 0.85rem 1rem;
-      font-family: monospace;
-      font-size: 0.9rem;
-      overflow-x: auto;
-      white-space: pre-wrap;
-    }
-
-    /* Error */
-    #errorBox {
-      display: none;
-      background: #fef2f2;
-      border: 1px solid #fca5a5;
-      border-radius: 8px;
-      padding: 0.75rem 1rem;
-      color: #b91c1c;
-      font-size: 0.9rem;
-      margin-top: 0.75rem;
-    }
-
-    /* Spinner */
-    .spinner-wrap {
-      display: none;
-      justify-content: center;
-      align-items: center;
-      padding: 2rem;
-      gap: 0.75rem;
-      color: #6b7280;
-    }
-    .spinner {
-      width: 28px; height: 28px;
-      border: 3px solid #d1d5db;
-      border-top-color: #1a56db;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Stats */
-    .stats-row {
-      display: flex;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-    .stat-card {
-      flex: 1;
-      min-width: 130px;
-      background: #fff;
-      border-radius: 10px;
-      padding: 1rem 1.25rem;
-      box-shadow: 0 1px 6px rgba(0,0,0,.07);
-      text-align: center;
-    }
-    .stat-card .val { font-size: 1.75rem; font-weight: 700; color: #1a56db; }
-    .stat-card .lbl { font-size: 0.78rem; color: #6b7280; margin-top: 0.2rem; }
-
-    /* Table */
-    .table-wrap {
-      overflow-x: auto;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.9rem;
-    }
-    thead tr { background: #1a56db; color: #fff; }
-    thead th { padding: 0.65rem 0.9rem; text-align: left; font-weight: 600; }
-    tbody tr:nth-child(even) { background: #f8fafc; }
-    tbody tr:hover { background: #eff6ff; }
-    tbody td { padding: 0.6rem 0.9rem; border-bottom: 1px solid #e5e7eb; }
-
-    /* Chart */
-    .chart-container {
-      position: relative;
-      height: 320px;
-    }
-  </style>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>Stitch AI — Banking Data Assistant</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
+  <div class="app-shell">
 
-<header>
-  <!-- Bank icon -->
-  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-       stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <line x1="3" y1="22" x2="21" y2="22"/>
-    <line x1="6" y1="18" x2="6" y2="11"/>
-    <line x1="10" y1="18" x2="10" y2="11"/>
-    <line x1="14" y1="18" x2="14" y2="11"/>
-    <line x1="18" y1="18" x2="18" y2="11"/>
-    <polygon points="12 2 20 7 4 7"/>
-  </svg>
-  <div>
-    <h1>Banking Data Assistant</h1>
-    <p>Ask questions about your banking data in plain English</p>
+    <!-- ===== Sidebar ===== -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-icon">
+          <span class="material-symbols-outlined">analytics</span>
+        </div>
+        <h1 class="brand-text">Stitch AI</h1>
+      </div>
+
+      <nav class="sidebar-nav" id="sidebar-nav">
+        <a class="nav-item active" data-page="conversations" href="#">
+          <span class="material-symbols-outlined">chat_bubble</span>
+          <span>Conversations</span>
+        </a>
+        <a class="nav-item" data-page="dashboard" href="#">
+          <span class="material-symbols-outlined">dashboard</span>
+          <span>Dashboard</span>
+        </a>
+        <a class="nav-item" data-page="sql-editor" href="#">
+          <span class="material-symbols-outlined">code</span>
+          <span>SQL Editor</span>
+        </a>
+        <a class="nav-item" data-page="history" href="#">
+          <span class="material-symbols-outlined">history</span>
+          <span>History</span>
+        </a>
+        <a class="nav-item" data-page="datasources" href="#">
+          <span class="material-symbols-outlined">database</span>
+          <span>Data Sources</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-card">
+          <div class="user-avatar">A</div>
+          <div class="user-info">
+            <p class="user-name">Alex Rivera</p>
+            <p class="user-role">Enterprise Admin</p>
+          </div>
+          <span class="material-symbols-outlined user-settings">settings</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ===== Main Content ===== -->
+    <main class="main-area">
+
+      <!-- Top Header -->
+      <header class="top-header" id="top-header">
+        <div class="header-left">
+          <button class="mobile-menu-btn" id="mobile-menu-btn">
+            <span class="material-symbols-outlined">menu</span>
+          </button>
+          <h2 class="header-title" id="header-title">Banking Data Conversations</h2>
+          <span class="header-badge" id="header-badge">Session Active</span>
+        </div>
+        <div class="header-right">
+          <button class="header-icon-btn" id="btn-share" title="Share">
+            <span class="material-symbols-outlined">share</span>
+          </button>
+          <button class="header-icon-btn" id="btn-help" title="Help">
+            <span class="material-symbols-outlined">help_outline</span>
+          </button>
+          <div class="header-divider"></div>
+          <button class="export-btn" id="btn-export">
+            <span class="material-symbols-outlined">download</span>
+            Export Report
+          </button>
+        </div>
+      </header>
+
+      <!-- Page Container — each page renders here -->
+      <div class="page-container" id="page-container"></div>
+
+    </main>
   </div>
-</header>
 
-<main>
-  <!-- Query card -->
-  <div class="card">
-    <div class="query-row">
-      <textarea id="queryInput" rows="2"
-        placeholder="e.g. Show top 5 transactions today"></textarea>
-      <button id="submitBtn" onclick="submitQuery()">Ask →</button>
-    </div>
-    <div class="examples">
-      Try:
-      <span onclick="fillExample(this)">Show top 5 transactions today</span>
-      <span onclick="fillExample(this)">Total balance per account type</span>
-      <span onclick="fillExample(this)">Customers from New York</span>
-      <span onclick="fillExample(this)">Largest 10 debit transactions this month</span>
-      <span onclick="fillExample(this)">How many transactions per day in the last 7 days</span>
-    </div>
-    <div id="sqlBlock"></div>
-    <div id="errorBox"></div>
-  </div>
+  <!-- Mobile sidebar overlay -->
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
-  <!-- Spinner -->
-  <div class="spinner-wrap" id="spinnerWrap">
-    <div class="spinner"></div>
-    <span>Generating and executing query…</span>
-  </div>
-
-  <!-- Stats -->
-  <div class="stats-row" id="statsRow" style="display:none">
-    <div class="stat-card">
-      <div class="val" id="statRows">–</div>
-      <div class="lbl">Rows returned</div>
-    </div>
-    <div class="stat-card">
-      <div class="val" id="statCols">–</div>
-      <div class="lbl">Columns</div>
-    </div>
-    <div class="stat-card" id="statNumericCard" style="display:none">
-      <div class="val" id="statNumericVal">–</div>
-      <div class="lbl" id="statNumericLbl">–</div>
-    </div>
-  </div>
-
-  <!-- Chart card -->
-  <div class="card" id="chartCard" style="display:none">
-    <h2 style="font-size:1rem;font-weight:600;margin-bottom:1rem">Visualisation</h2>
-    <div class="chart-container">
-      <canvas id="myChart"></canvas>
-    </div>
-  </div>
-
-  <!-- Results table card -->
-  <div class="card" id="resultsCard" style="display:none">
-    <h2 style="font-size:1rem;font-weight:600;margin-bottom:1rem">Results</h2>
-    <div class="table-wrap" id="tableWrap"></div>
-  </div>
-</main>
-
-<script>
-  const API_BASE = "http://localhost:8000";
-  let chartInstance = null;
-
-  function fillExample(el) {
-    document.getElementById("queryInput").value = el.textContent.trim();
-  }
-
-  function setLoading(loading) {
-    document.getElementById("submitBtn").disabled = loading;
-    document.getElementById("spinnerWrap").style.display = loading ? "flex" : "none";
-  }
-
-  function showError(msg) {
-    const box = document.getElementById("errorBox");
-    box.textContent = "⚠ " + msg;
-    box.style.display = "block";
-  }
-
-  function clearUI() {
-    document.getElementById("errorBox").style.display = "none";
-    document.getElementById("sqlBlock").style.display = "none";
-    document.getElementById("statsRow").style.display = "none";
-    document.getElementById("chartCard").style.display = "none";
-    document.getElementById("resultsCard").style.display = "none";
-    document.getElementById("tableWrap").innerHTML = "";
-    if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
-  }
-
-  async function submitQuery() {
-    const query = document.getElementById("queryInput").value.trim();
-    if (!query) return;
-    clearUI();
-    setLoading(true);
-
-    try {
-      const res = await fetch(`${API_BASE}/query`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        showError(data.detail || "Unknown error");
-        return;
-      }
-      renderResults(data);
-    } catch (err) {
-      showError("Could not connect to backend: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function renderResults(data) {
-    // SQL pill
-    const sqlBlock = document.getElementById("sqlBlock");
-    sqlBlock.textContent = data.sql;
-    sqlBlock.style.display = "block";
-
-    // Stats
-    document.getElementById("statRows").textContent = data.row_count;
-    document.getElementById("statCols").textContent = data.columns.length;
-    document.getElementById("statsRow").style.display = "flex";
-
-    if (!data.rows || data.rows.length === 0) return;
-
-    // Show results table
-    renderTable(data.columns, data.rows);
-
-    // Attempt chart
-    tryRenderChart(data.columns, data.rows);
-  }
-
-  function renderTable(columns, rows) {
-    const card = document.getElementById("resultsCard");
-    const wrap = document.getElementById("tableWrap");
-    const table = document.createElement("table");
-
-    const thead = document.createElement("thead");
-    const headerRow = document.createElement("tr");
-    columns.forEach(col => {
-      const th = document.createElement("th");
-      th.textContent = col;
-      headerRow.appendChild(th);
-    });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    const tbody = document.createElement("tbody");
-    rows.forEach(row => {
-      const tr = document.createElement("tr");
-      row.forEach(cell => {
-        const td = document.createElement("td");
-        td.textContent = cell !== null ? cell : "NULL";
-        tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
-    });
-    table.appendChild(tbody);
-    wrap.appendChild(table);
-    card.style.display = "block";
-  }
-
-  function tryRenderChart(columns, rows) {
-    // Need ≥2 columns, first as label, at least one numeric column
-    if (columns.length < 2) return;
-
-    const numericColIndex = columns.findIndex((_, i) => i > 0 && isNumeric(rows, i));
-    if (numericColIndex === -1) return;
-
-    const labels = rows.map(r => String(r[0]));
-    const values = rows.map(r => parseFloat(r[numericColIndex]) || 0);
-    const colName = columns[numericColIndex];
-
-    // Determine chart type: bar for categories, line for dates/numbers
-    const firstLabel = labels[0] || "";
-    const isDate = /^\d{4}-\d{2}-\d{2}/.test(firstLabel);
-    const chartType = isDate ? "line" : "bar";
-
-    const palette = [
-      "#1a56db","#2563eb","#3b82f6","#60a5fa","#93c5fd",
-      "#1d4ed8","#1e40af","#2563eb","#3b82f6","#60a5fa",
-    ];
-
-    const ctx = document.getElementById("myChart").getContext("2d");
-    chartInstance = new Chart(ctx, {
-      type: chartType,
-      data: {
-        labels,
-        datasets: [{
-          label: colName,
-          data: values,
-          backgroundColor: chartType === "bar"
-            ? labels.map((_, i) => palette[i % palette.length])
-            : "rgba(26,86,219,0.15)",
-          borderColor: "#1a56db",
-          borderWidth: chartType === "bar" ? 0 : 2,
-          fill: chartType === "line",
-          tension: 0.4,
-          pointRadius: chartType === "line" ? 3 : 0,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: ctx => " " + Number(ctx.parsed.y).toLocaleString(),
-            },
-          },
-        },
-        scales: {
-          y: { beginAtZero: true, grid: { color: "#f1f5f9" } },
-          x: { grid: { display: false } },
-        },
-      },
-    });
-
-    document.getElementById("chartCard").style.display = "block";
-
-    // Show aggregate stat
-    const total = values.reduce((a, b) => a + b, 0);
-    const statCard = document.getElementById("statNumericCard");
-    document.getElementById("statNumericVal").textContent =
-      total >= 1000 ? total.toLocaleString(undefined, {maximumFractionDigits: 0}) : total.toFixed(2);
-    document.getElementById("statNumericLbl").textContent = "Total " + colName;
-    statCard.style.display = "block";
-  }
-
-  function isNumeric(rows, colIndex) {
-    return rows.slice(0, 5).some(r => r[colIndex] !== null && !isNaN(parseFloat(r[colIndex])));
-  }
-
-  // Allow Ctrl+Enter / Cmd+Enter to submit
-  document.getElementById("queryInput").addEventListener("keydown", e => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") submitQuery();
-  });
-</script>
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>
