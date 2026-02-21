@@ -47,7 +47,15 @@ class Settings(BaseSettings):
     ]
     
     # CORS (if frontend is on different origin)
-    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8080,http://localhost:8001,http://localhost:5500,http://127.0.0.1:5500,http://localhost:5173,http://127.0.0.1:8001"
+    CORS_ORIGINS: str = os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:3000,http://localhost:8080,http://localhost:8001,"
+        "http://localhost:5500,http://127.0.0.1:5500,http://localhost:5173,"
+        "http://127.0.0.1:8001"
+    )
+    
+    # Port — Render injects PORT env var
+    PORT: int = int(os.getenv("PORT", "8000"))
     
     @property
     def cors_origins_list(self) -> list[str]:

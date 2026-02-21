@@ -31,48 +31,56 @@ from backend.config import settings, get_database_path
 logger = logging.getLogger(__name__)
 
 
+def _fix_render_postgres_url(url: str) -> str:
+    """
+    Render provides DATABASE_URL as 'postgres://...' but SQLAlchemy 2.x
+    requires 'postgresql://...'.  Fix it transparently.
+    """
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql://", 1)
+    return url
+
+
 # ============================================================
 # ENGINE CONFIGURATION
 # ============================================================
 
 def create_db_engine() -> Engine:
     """
-    Create SQLAlchemy engine with appropriate configuration
-    Enforces read-only mode for security
+    Create SQLAlchemy engine with appropriate configuration.
+    Supports both SQLite (dev) and PostgreSQL (production).
     """
-    connect_args = {}
-    
+    db_url = _fix_render_postgres_url(settings.DATABASE_URL)
+
     # SQLite-specific configuration
-    if settings.DATABASE_URL.startswith("sqlite"):
-        connect_args = {
-            "check_same_thread": False,  # Allow multi-threading
-        }
-        
-        # Use StaticPool for SQLite in-memory or small applications
+    if db_url.startswith("sqlite"):
+        connect_args = {"check_same_thread": False}
+
         engine = create_engine(
-            settings.DATABASE_URL,
+            db_url,
             connect_args=connect_args,
             poolclass=StaticPool,
-            echo=settings.DEBUG
+            echo=settings.DEBUG,
         )
-        
-        # Enable foreign key constraints for SQLite
+
         @event.listens_for(engine, "connect")
         def set_sqlite_pragma(dbapi_conn, connection_record):
             cursor = dbapi_conn.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.close()
     else:
-        # PostgreSQL or other database configuration
+        # PostgreSQL / production configuration
         engine = create_engine(
-            settings.DATABASE_URL,
+            db_url,
             pool_size=settings.DB_POOL_SIZE,
             max_overflow=settings.DB_MAX_OVERFLOW,
             pool_timeout=settings.DB_POOL_TIMEOUT,
-            echo=settings.DEBUG
+            pool_pre_ping=True,           # Recycle dead connections
+            pool_recycle=300,             # Recycle connections every 5 min
+            echo=settings.DEBUG,
         )
-    
-    logger.info(f"Database engine created: {settings.DATABASE_URL}")
+
+    logger.info(f"Database engine created: {db_url.split('@')[-1] if '@' in db_url else db_url}")
     return engine
 
 
@@ -126,30 +134,36 @@ transactions_table = Table(
 
 def init_database() -> None:
     """
-    Initialize database with schema from SQL file
-    Only creates tables if they don't exist
+    Initialize database with schema from SQL file.
+    Picks schema_postgres.sql for PostgreSQL, schema.sql for SQLite.
+    Only creates tables if they don't exist.
     """
     try:
-        schema_file = Path(__file__).parent.parent / "models" / "schema.sql"
-        
+        db_url = _fix_render_postgres_url(settings.DATABASE_URL)
+        is_postgres = db_url.startswith("postgresql")
+
+        if is_postgres:
+            schema_file = Path(__file__).parent.parent / "models" / "schema_postgres.sql"
+        else:
+            schema_file = Path(__file__).parent.parent / "models" / "schema.sql"
+
         if not schema_file.exists():
             logger.error(f"Schema file not found: {schema_file}")
             raise FileNotFoundError(f"Schema file not found: {schema_file}")
-        
-        # Read schema SQL
-        with open(schema_file, 'r') as f:
+
+        with open(schema_file, "r") as f:
             schema_sql = f.read()
-        
-        # Execute schema SQL
+
         with engine.begin() as conn:
-            # Split by semicolon and execute each statement
-            statements = [s.strip() for s in schema_sql.split(';') if s.strip()]
+            # Filter out SQLite-specific PRAGMAs when on PostgreSQL
+            statements = [s.strip() for s in schema_sql.split(";") if s.strip()]
             for statement in statements:
-                if statement:
-                    conn.execute(text(statement))
-        
-        logger.info("Database initialized successfully")
-        
+                if is_postgres and statement.upper().startswith("PRAGMA"):
+                    continue
+                conn.execute(text(statement))
+
+        logger.info(f"Database initialized successfully ({'PostgreSQL' if is_postgres else 'SQLite'})")
+
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
         raise

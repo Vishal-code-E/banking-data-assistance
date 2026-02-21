@@ -56,7 +56,6 @@ def intent_agent(state: BankingAssistantState) -> Dict[str, Any]:
     """
     user_query = state["user_query"]
     
-    print(f"[INTENT AGENT] USER QUERY: {user_query}")
     logger.log_user_query(user_query)
     
     # Load prompt template
@@ -67,8 +66,6 @@ def intent_agent(state: BankingAssistantState) -> Dict[str, Any]:
     
     # Call LLM (abstracted)
     interpreted_intent = call_llm_for_intent(formatted_prompt)
-    
-    print(f"[INTENT AGENT] INTERPRETED INTENT: {interpreted_intent[:120]}")
     
     logger.log_agent_execution(
         agent_name="IntentAgent",

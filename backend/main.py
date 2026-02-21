@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Banking Data Assistant API...")
     logger.info(f"Environment: {'Development' if settings.DEBUG else 'Production'}")
-    logger.info(f"Database: {settings.DATABASE_URL}")
+    logger.info(f"Database: {settings.DATABASE_URL.split('@')[-1] if '@' in settings.DATABASE_URL else settings.DATABASE_URL}")
 
     try:
         # Initialize database
@@ -90,8 +90,8 @@ app = FastAPI(
     * Query sanitization and validation
     """,
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc"
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
 )
 
 
@@ -320,7 +320,7 @@ async def ask_question(request: AskRequest):
     1. IntentAgent — classifies user intent
     2. SQLAgent — generates SQL from intent + schema
     3. ValidationAgent — validates and secures the SQL
-    4. ExecutionTool — runs the query against SQLite
+    4. ExecutionTool — runs the query against the database
     5. InsightAgent — produces a human-readable summary
 
     ## Response Contract
@@ -452,7 +452,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "backend.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=settings.PORT,
         reload=settings.DEBUG,
         log_level="debug" if settings.DEBUG else "info"
     )

@@ -86,9 +86,6 @@ def sql_agent(state: BankingAssistantState) -> Dict[str, Any]:
     # Clean up SQL
     generated_sql = generated_sql.strip().rstrip(';')
     
-    print(f"[SQL AGENT] USER QUERY: {state.get('user_query', 'N/A')}")
-    print(f"[SQL AGENT] GENERATED SQL: {generated_sql}")
-    
     logger.log_sql_generation(generated_sql, retry_count)
     
     logger.log_agent_execution(

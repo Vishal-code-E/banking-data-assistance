@@ -3,7 +3,36 @@
    All communication with the FastAPI backend.
    ============================================================ */
 
-const API_BASE = 'http://localhost:8001';
+/**
+ * Resolve the backend API base URL.
+ *
+ * Priority:
+ *  1. window.__API_BASE  – allows runtime injection via a <script> tag
+ *  2. If the frontend is served from a Render static site
+ *     (hostname contains 'onrender.com'), derive the backend
+ *     URL by replacing the static-site prefix with the web-service prefix.
+ *     Convention: static site  = "bdata-frontend.onrender.com"
+ *                 web service  = "bdata-backend.onrender.com"
+ *  3. Fallback → localhost for local development.
+ */
+function resolveApiBase() {
+  // 1. Explicit runtime override
+  if (window.__API_BASE) return window.__API_BASE.replace(/\/+$/, '');
+
+  const host = window.location.hostname;
+
+  // 2. Render convention: <name>.onrender.com
+  if (host.endsWith('.onrender.com')) {
+    // Replace "-frontend" or the site name with "-backend"
+    const backendHost = host.replace(/-frontend/, '-backend');
+    return `https://${backendHost}`;
+  }
+
+  // 3. Local development
+  return 'http://localhost:8001';
+}
+
+const API_BASE = resolveApiBase();
 
 /** Wrapper around fetch, returns parsed JSON or throws */
 async function request(url, opts = {}) {
