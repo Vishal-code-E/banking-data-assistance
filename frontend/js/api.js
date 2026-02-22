@@ -28,12 +28,31 @@ function resolveApiBase() {
 
 const API_BASE = resolveApiBase();
 
-/** Wrapper around fetch, returns parsed JSON or throws */
-async function request(url, opts = {}) {
-  const res = await fetch(url, opts);
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.detail || JSON.stringify(json));
-  return json;
+/**
+ * Wrapper around fetch with timeout support.
+ * Render free-tier cold starts can take 30-60 s, so we allow up to 120 s
+ * for AI requests.
+ */
+async function request(url, opts = {}, timeoutMs = 120000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, { ...opts, signal: controller.signal });
+    clearTimeout(timer);
+
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.detail || json.error || JSON.stringify(json));
+    return json;
+  } catch (err) {
+    clearTimeout(timer);
+    if (err.name === 'AbortError') {
+      throw new Error(
+        'Request timed out. The server may be waking up from a cold start — please try again in 30 seconds.'
+      );
+    }
+    throw err;
+  }
 }
 
 /* ---------- public helpers ---------- */

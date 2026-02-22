@@ -28,8 +28,10 @@ def call_llm_for_intent(prompt: str) -> str:
     api_key = os.environ.get("OPENAI_API_KEY", "")
     if not api_key:
         logger.log_error("OPENAI_API_KEY not set", {})
-        user_query = prompt.split("User Query: ")[-1].strip()
-        return f"Extract and analyze data based on: {user_query}"
+        raise RuntimeError(
+            "OPENAI_API_KEY is not configured. "
+            "Please set it in the Render dashboard under Environment Variables."
+        )
 
     try:
         from langchain_openai import ChatOpenAI
@@ -37,11 +39,11 @@ def call_llm_for_intent(prompt: str) -> str:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
         response = llm.invoke(prompt)
         return response.content.strip()
+    except RuntimeError:
+        raise
     except Exception as e:
         logger.log_error(f"LLM call failed: {e}", {})
-        # Fallback to basic extraction
-        user_query = prompt.split("User Query: ")[-1].strip()
-        return f"Extract and analyze data based on: {user_query}"
+        raise RuntimeError(f"Intent extraction failed: {e}")
 
 
 def intent_agent(state: BankingAssistantState) -> Dict[str, Any]:

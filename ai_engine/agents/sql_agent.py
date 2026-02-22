@@ -29,7 +29,10 @@ def call_llm_for_sql(prompt: str) -> str:
     api_key = os.environ.get("OPENAI_API_KEY", "")
     if not api_key:
         logger.log_error("OPENAI_API_KEY not set", {})
-        return "SELECT * FROM transactions LIMIT 10"
+        raise RuntimeError(
+            "OPENAI_API_KEY is not configured. "
+            "Please set it in the Render dashboard under Environment Variables."
+        )
 
     try:
         from langchain_openai import ChatOpenAI
@@ -47,10 +50,11 @@ def call_llm_for_sql(prompt: str) -> str:
             sql = sql.split("```")[1].split("```")[0].strip()
 
         return sql
+    except RuntimeError:
+        raise
     except Exception as e:
         logger.log_error(f"LLM call failed: {e}", {})
-        # Fallback to safe default
-        return "SELECT * FROM transactions LIMIT 10"
+        raise RuntimeError(f"SQL generation failed: {e}")
 
 
 def sql_agent(state: BankingAssistantState) -> Dict[str, Any]:

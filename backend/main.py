@@ -55,6 +55,16 @@ async def lifespan(app: FastAPI):
         else:
             logger.info("All required tables verified successfully")
 
+        # Check for OpenAI API key
+        import os
+        if not os.environ.get("OPENAI_API_KEY"):
+            logger.warning(
+                "⚠️  OPENAI_API_KEY is NOT set! "
+                "AI features will fail. Set it in Environment Variables."
+            )
+        else:
+            logger.info("OPENAI_API_KEY is configured")
+
         logger.info("Application startup complete")
 
     except Exception as e:
@@ -169,18 +179,20 @@ async def root():
     }
 
 
-@app.get("/health", response_model=HealthResponse, tags=["Health"])
+@app.get("/health", tags=["Health"])
 async def health_check():
     """
     Health check endpoint
-    Returns database connection status and available tables
+    Returns database connection status, available tables, and AI readiness
     """
+    import os
     try:
         health_status = check_database_health()
-        return HealthResponse(**health_status)
+        health_status["ai_ready"] = bool(os.environ.get("OPENAI_API_KEY"))
+        return health_status
     except Exception as e:
         logger.error(f"Health check failed: {e}")
-        return HealthResponse(status="unhealthy", error=str(e))
+        return {"status": "unhealthy", "ai_ready": False, "error": str(e)}
 
 
 @app.get("/info", response_model=InfoResponse, tags=["Info"])

@@ -31,7 +31,10 @@ def call_llm_for_insight(prompt: str) -> tuple:
     api_key = os.environ.get("OPENAI_API_KEY", "")
     if not api_key:
         logger.log_error("OPENAI_API_KEY not set for insight generation", {})
-        return "Query executed successfully and returned the requested data.", "table"
+        raise RuntimeError(
+            "OPENAI_API_KEY is not configured. "
+            "Please set it in the Render dashboard under Environment Variables."
+        )
 
     try:
         from langchain_openai import ChatOpenAI
@@ -61,9 +64,11 @@ def call_llm_for_insight(prompt: str) -> tuple:
 
         return summary, chart
 
+    except RuntimeError:
+        raise
     except Exception as e:
         logger.log_error(f"Insight LLM call failed: {e}", {})
-        return "Query executed successfully and returned the requested data.", "table"
+        raise RuntimeError(f"Insight generation failed: {e}")
 
 
 def insight_agent(state: BankingAssistantState) -> Dict[str, Any]:
