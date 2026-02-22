@@ -939,7 +939,7 @@ input, textarea { font: inherit; color: inherit; }
 .bdata-chart-wrap {
   width: 100%;
   max-width: 44rem;
-  height: 320px;
+  height: 340px;
   background: var(--bg-white);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -969,6 +969,72 @@ input, textarea { font: inherit; color: inherit; }
   flex: 1;
   width: 100% !important;
   padding: 0.75rem;
+}
+
+/* ---------- Metric Card ---------- */
+.bdata-metric-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a2b3d 0%, #2d4a6f 100%);
+  color: #ffffff;
+  border-radius: var(--radius-lg);
+  padding: 2rem 2.5rem;
+  margin-top: 0.25rem;
+  max-width: 26rem;
+  text-align: center;
+  box-shadow: 0 4px 24px rgba(26, 43, 61, 0.18);
+}
+.metric-icon {
+  background: rgba(255,255,255,0.15);
+  border-radius: 50%;
+  width: 3rem; height: 3rem;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 0.75rem;
+}
+.metric-icon .material-symbols-outlined { font-size: 1.5rem; color: #60a5fa; }
+.metric-value {
+  font-size: 2.75rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.metric-key {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  opacity: 0.75;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 0.35rem;
+}
+.metric-label {
+  font-size: 0.75rem;
+  opacity: 0.6;
+  margin-top: 0.25rem;
+}
+.metric-extras {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255,255,255,0.15);
+}
+.metric-extra {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+.metric-extra-label {
+  font-size: 0.6875rem;
+  opacity: 0.5;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.metric-extra-val {
+  font-size: 1.25rem;
+  font-weight: 600;
 }
 
 .bdata-empty-state {

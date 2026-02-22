@@ -47,19 +47,30 @@ def call_llm_for_insight(prompt: str) -> tuple:
         summary = content
         chart = "table"
 
-        # Try to extract structured response
-        lines = content.split("\n")
-        for line in lines:
-            line_lower = line.strip().lower()
-            if line_lower.startswith("summary:"):
-                summary = line.split(":", 1)[1].strip().strip('"')
-            elif line_lower.startswith("chart:"):
-                chart_val = line.split(":", 1)[1].strip().strip('"').lower()
-                if chart_val in ("bar", "line", "pie", "table", "metric"):
-                    chart = chart_val
+        # Try to extract structured response (case-insensitive, flexible)
+        import re
 
-        # If no structured format, use full response as summary
-        if summary == content and "Summary" not in content:
+        # Match SUMMARY: ... (greedy, can span line)
+        summary_match = re.search(
+            r'(?:^|\n)\s*summary\s*:\s*(.+?)(?=\n\s*chart\s*:|$)',
+            content, re.IGNORECASE | re.DOTALL
+        )
+        if summary_match:
+            summary = summary_match.group(1).strip().strip('"').strip("'")
+
+        # Match CHART: ... (single word)
+        chart_match = re.search(
+            r'(?:^|\n)\s*chart\s*:\s*(\w+)',
+            content, re.IGNORECASE
+        )
+        if chart_match:
+            chart_val = chart_match.group(1).strip().lower()
+            valid_charts = ("bar", "line", "pie", "table", "metric", "doughnut")
+            if chart_val in valid_charts:
+                chart = chart_val
+
+        # Fallback: if no structured format found, use full content as summary
+        if not summary_match:
             summary = content
 
         return summary, chart

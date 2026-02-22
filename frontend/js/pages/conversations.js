@@ -411,8 +411,12 @@ const CHART_PALETTE = [
   '#84cc16', '#d946ef', '#0891b2', '#e11d48', '#7c3aed',
 ];
 
+/** Columns that are identifiers / surrogate keys — never chart these */
+const ID_PATTERN = /^id$|_id$|^pk$|^key$/i;
+
 /**
- * Classify each column as 'numeric', 'categorical', or 'temporal'.
+ * Classify each column as 'numeric', 'categorical', 'temporal', or 'id'.
+ * ID-like columns are tagged separately so charts can ignore them.
  */
 function classifyColumns(data) {
   if (!data.length) return {};
@@ -420,6 +424,9 @@ function classifyColumns(data) {
   const info = {};
 
   for (const k of keys) {
+    /* Tag id-like columns first */
+    if (ID_PATTERN.test(k)) { info[k] = 'id'; continue; }
+
     const sample = data.map(r => r[k]).filter(v => v != null);
     if (sample.length === 0) { info[k] = 'categorical'; continue; }
 
@@ -440,6 +447,11 @@ function classifyColumns(data) {
   return info;
 }
 
+/** Helper: get chartable numeric columns (excludes id-like) */
+function getChartableNumeric(colTypes) {
+  return Object.keys(colTypes).filter(k => colTypes[k] === 'numeric');
+}
+
 /**
  * Infer the best chart type from data shape when backend doesn't suggest one.
  *
@@ -451,16 +463,18 @@ function classifyColumns(data) {
  *  - no numeric columns         → table (no chart)
  */
 function inferChartType(data, colTypes) {
-  const keys = Object.keys(colTypes);
-  const numericCols  = keys.filter(k => colTypes[k] === 'numeric');
-  const catCols      = keys.filter(k => colTypes[k] === 'categorical');
-  const temporalCols = keys.filter(k => colTypes[k] === 'temporal');
+  const numericCols  = getChartableNumeric(colTypes);
+  const catCols      = Object.keys(colTypes).filter(k => colTypes[k] === 'categorical');
+  const temporalCols = Object.keys(colTypes).filter(k => colTypes[k] === 'temporal');
 
-  /* No numeric data at all → skip chart */
+  /* No chartable numeric data → skip chart */
   if (numericCols.length === 0) return 'none';
 
-  /* Single-row aggregate (COUNT, SUM, AVG) → metric, no chart */
+  /* Single-row aggregate (COUNT, SUM, AVG) → metric card */
   if (data.length === 1 && numericCols.length >= 1 && catCols.length === 0 && temporalCols.length === 0) return 'metric';
+
+  /* Single-row with a category label + value (e.g. type: savings, total: 1200) → metric */
+  if (data.length === 1 && numericCols.length === 1) return 'metric';
 
   /* Time series detected → line */
   if (temporalCols.length >= 1 && numericCols.length >= 1) return 'line';
@@ -473,42 +487,104 @@ function inferChartType(data, colTypes) {
   /* Multiple numeric columns → grouped bar */
   if (numericCols.length > 1) return 'bar';
 
-  /* Fallback */
-  return data.length > 1 ? 'bar' : 'none';
+  /* Only numeric columns, no label axis — still bar if >1 row */
+  if (data.length > 1) return 'bar';
+
+  return 'none';
 }
 
+/** Maximum rows sampled for chart rendering (keeps charts readable) */
+const CHART_MAX_ROWS = 200;
+
 /**
- * Build the chart container HTML. Returns '' when no chart is appropriate.
+ * Build the chart / metric-card container HTML.
+ * Returns '' only when truly no visualization is possible.
  */
 function buildChartBlock(result) {
   if (!result || result.error) return '';
   const data = result.execution_result?.data ?? [];
-  if (data.length === 0 || data.length > 50) return '';
+  if (data.length === 0) return '';
 
   const colTypes = classifyColumns(data);
   const suggestion = result.chart_suggestion;
   const resolved = resolveChartType(suggestion, data, colTypes);
 
-  if (resolved === 'none' || resolved === 'table' || resolved === 'metric') return '';
+  /* ---------- Metric card for single-value results ---------- */
+  if (resolved === 'metric') {
+    return buildMetricCard(data, colTypes);
+  }
+
+  if (resolved === 'none' || resolved === 'table') return '';
 
   const id = 'chart-' + Math.random().toString(36).slice(2, 10);
+  const chartLabel = resolved === 'doughnut' ? 'Doughnut' : resolved.charAt(0).toUpperCase() + resolved.slice(1);
+  const rowNote = data.length > CHART_MAX_ROWS
+    ? ` <span style="opacity:.6;font-size:.75rem">(showing top ${CHART_MAX_ROWS} of ${data.length} rows)</span>` : '';
   return `<div class="bdata-chart-wrap">
     <div class="bdata-chart-title-bar">
       <span class="material-symbols-outlined" style="font-size:1rem">bar_chart</span>
-      <span>Data Visualization — ${resolved.charAt(0).toUpperCase() + resolved.slice(1)} Chart</span>
+      <span>Data Visualization — ${chartLabel} Chart${rowNote}</span>
     </div>
-    <canvas class="bdata-chart-canvas" id="${id}" height="260"></canvas>
+    <canvas class="bdata-chart-canvas" id="${id}" height="280"></canvas>
   </div>`;
 }
 
 /**
- * Resolve chart type: trust backend suggestion when valid, infer otherwise.
+ * Build a big-number metric card for single-value aggregates.
+ */
+function buildMetricCard(data, colTypes) {
+  const row = data[0];
+  const keys = Object.keys(row);
+  const numericCols = getChartableNumeric(colTypes);
+  const catCols = keys.filter(k => colTypes[k] === 'categorical');
+
+  /* Pick the primary value (first chartable numeric column) */
+  const valKey = numericCols[0] || keys[0];
+  const rawVal = row[valKey];
+  const displayVal = typeof rawVal === 'number'
+    ? rawVal.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    : String(rawVal ?? '—');
+
+  /* Optional label from a categorical column */
+  const labelKey = catCols[0];
+  const labelHtml = labelKey
+    ? `<div class="metric-label">${escapeHtml(humanize(labelKey))}: ${escapeHtml(String(row[labelKey]))}</div>` : '';
+
+  /* Additional stats (other numeric columns) */
+  let extras = '';
+  if (numericCols.length > 1) {
+    extras = numericCols.slice(1).map(k =>
+      `<div class="metric-extra"><span class="metric-extra-label">${escapeHtml(humanize(k))}</span>` +
+      `<span class="metric-extra-val">${typeof row[k] === 'number' ? row[k].toLocaleString(undefined, { maximumFractionDigits: 2 }) : row[k]}</span></div>`
+    ).join('');
+  }
+
+  return `<div class="bdata-metric-card">
+    <div class="metric-icon"><span class="material-symbols-outlined">monitoring</span></div>
+    <div class="metric-value">${displayVal}</div>
+    <div class="metric-key">${escapeHtml(humanize(valKey))}</div>
+    ${labelHtml}
+    ${extras ? `<div class="metric-extras">${extras}</div>` : ''}
+  </div>`;
+}
+
+/**
+ * Resolve chart type: trust backend suggestion when valid, but
+ * auto-upgrade 'table' to a chart when the data is chartable.
  */
 function resolveChartType(suggestion, data, colTypes) {
-  const validTypes = ['bar', 'line', 'pie', 'doughnut'];
-  if (suggestion && validTypes.includes(suggestion)) return suggestion;
-  if (suggestion === 'table' || suggestion === 'metric' || suggestion === 'none') return suggestion;
-  return inferChartType(data, colTypes);
+  const chartTypes = ['bar', 'line', 'pie', 'doughnut'];
+
+  /* Backend explicitly chose a chart → trust it */
+  if (suggestion && chartTypes.includes(suggestion)) return suggestion;
+
+  /* Backend said 'metric' → honour it */
+  if (suggestion === 'metric') return 'metric';
+
+  /* Backend said 'table' or gave nothing — try to auto-infer a chart.
+     This is the key improvement: we always TRY to visualize. */
+  const inferred = inferChartType(data, colTypes);
+  return inferred;
 }
 
 /**
@@ -522,12 +598,15 @@ function renderChart(canvas, result) {
   const existing = Chart.getChart(canvas);
   if (existing) existing.destroy();
 
-  const data = result.execution_result?.data ?? [];
+  let data = result.execution_result?.data ?? [];
   if (data.length === 0) return;
+
+  /* Sample down for large datasets to keep charts readable */
+  if (data.length > CHART_MAX_ROWS) data = data.slice(0, CHART_MAX_ROWS);
 
   const colTypes = classifyColumns(data);
   const keys = Object.keys(data[0]);
-  const numericCols  = keys.filter(k => colTypes[k] === 'numeric');
+  const numericCols  = getChartableNumeric(colTypes);
   const catCols      = keys.filter(k => colTypes[k] === 'categorical');
   const temporalCols = keys.filter(k => colTypes[k] === 'temporal');
 
@@ -537,8 +616,10 @@ function renderChart(canvas, result) {
   const type = resolveChartType(result.chart_suggestion, data, colTypes);
   if (type === 'none' || type === 'table' || type === 'metric') return;
 
-  /* 3. Determine label axis (first categorical or temporal column, else first key) */
-  let labelKey = temporalCols[0] || catCols[0] || keys[0];
+  /* 3. Determine label axis (first temporal, then categorical, then first non-id/non-numeric key) */
+  let labelKey = temporalCols[0] || catCols[0]
+    || keys.find(k => colTypes[k] !== 'numeric' && colTypes[k] !== 'id')
+    || keys[0];
 
   /* 4. Build labels */
   const labels = data.map(r => {
@@ -562,8 +643,8 @@ function renderChart(canvas, result) {
     borderWidth: isPie ? 2 : 2,
     borderRadius: type === 'bar' ? 6 : 0,
     tension: type === 'line' ? 0.3 : 0,
-    fill: type === 'line' ? false : undefined,
-    pointRadius: type === 'line' ? 4 : undefined,
+    fill: type === 'line' ? 'origin' : undefined,
+    pointRadius: type === 'line' ? 3 : undefined,
     pointHoverRadius: type === 'line' ? 6 : undefined,
   }));
 
@@ -572,7 +653,7 @@ function renderChart(canvas, result) {
 
   /* 6. Create Chart.js instance */
   new Chart(canvas, {
-    type: isPie ? type : type,
+    type,
     data: {
       labels,
       datasets: chartDatasets,
@@ -615,7 +696,12 @@ function renderChart(canvas, result) {
           grid: { color: '#e2e8f0', drawBorder: false },
           ticks: {
             font: { size: 11, family: 'Inter' },
-            callback: (v) => typeof v === 'number' && v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v,
+            callback: (v) => {
+              if (typeof v !== 'number') return v;
+              if (Math.abs(v) >= 1_000_000) return (v / 1_000_000).toFixed(1) + 'M';
+              if (Math.abs(v) >= 1_000) return (v / 1_000).toFixed(0) + 'k';
+              return v;
+            },
           },
         },
         x: {

@@ -10,29 +10,41 @@ RESULT DATA:
 
 Generate:
 
-1. **Summary**: A concise 1-2 sentence summary of what the data shows
-2. **Chart Suggestion**: Recommend the best chart type for this data
+1. **Summary**: A concise 1-3 sentence summary of what the data shows. Include key figures, totals, or patterns.
+2. **Chart Suggestion**: Recommend the BEST chart type for visualizing this data.
 
-Chart types to choose from:
-- **bar**: For comparing categories or counts
-- **line**: For trends over time
-- **pie**: For showing proportions/percentages
-- **table**: For detailed data or multiple columns
-- **metric**: For single values (count, sum, average)
+## Chart Selection Rules (follow these strictly):
 
-Example outputs:
+| Data Shape | Chart Type |
+|------------|-----------|
+| Single aggregate value (COUNT, SUM, AVG, etc.) — 1 row, 1-2 columns | **metric** |
+| Categories with one numeric value (e.g. customer names + balance) ≤ 6 rows | **pie** |
+| Categories with one numeric value > 6 rows | **bar** |
+| Time-series data (dates/months/years + numbers) | **line** |
+| Comparing groups across multiple numeric dimensions | **bar** |
+| Raw detail data with many columns (IDs, text, dates, amounts mixed) | **table** |
+| Transaction lists, log entries, or row-level detail | **table** |
 
-Summary: "The query returned 5 high-value transactions, totaling $127,450 in the last month."
-Chart: "bar"
+Available chart types: bar, line, pie, metric, table
 
-Summary: "There are 342 premium customers, representing 23% of the total customer base."
-Chart: "metric"
+## Examples:
 
-Summary: "Average savings account balance is $8,450, with 156 accounts analyzed."
-Chart: "metric"
+SUMMARY: The total balance across all accounts is $45,750.50, spread across 5 accounts.
+CHART: bar
 
-Now generate the summary and chart recommendation:
+SUMMARY: There are 5 customers in the database.
+CHART: metric
 
-Return in this exact format:
-SUMMARY: [your summary]
-CHART: [bar/line/pie/table/metric]
+SUMMARY: Transaction volume peaked in January at $12,400, with a steady decline through March.
+CHART: line
+
+SUMMARY: Savings accounts hold 62% of total funds, followed by checking at 28% and investment at 10%.
+CHART: pie
+
+SUMMARY: The query returned 10 recent transactions with details including account, type, and amount.
+CHART: table
+
+Now generate the summary and chart recommendation. Return in this EXACT format (two lines only):
+
+SUMMARY: [your summary here]
+CHART: [bar|line|pie|table|metric]
